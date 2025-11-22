@@ -4,34 +4,21 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 
-type ViewMode = "month" | "week" | "day";
-
 type Props = {
   currentDate: Date;
-  view: ViewMode;
-  onViewChange: (view: ViewMode) => void;
   onNavigate: (action: "prev" | "next" | "today") => void;
 };
 
-const VIEW_MODES: { id: ViewMode; label: string }[] = [
-  { id: "month", label: "Month" },
-  { id: "week", label: "Week" },
-  { id: "day", label: "Day" },
-];
-
 export function Base44CalendarHeader({
   currentDate,
-  view,
-  onViewChange,
   onNavigate,
 }: Props) {
   const getTitle = () => {
-    if (view === "day") return format(currentDate, "EEEE, MMMM d, yyyy");
     return format(currentDate, "MMMM yyyy");
   };
 
   return (
-    <div className="mb-6 flex items-center justify-between">
+    <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)] bg-[var(--surface)] shrink-0">
       <div className="flex items-center gap-6">
         <motion.h1
           key={getTitle()}
@@ -68,32 +55,6 @@ export function Base44CalendarHeader({
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="flex items-center rounded-lg bg-[var(--background)] p-1">
-          {VIEW_MODES.map((mode) => (
-            <button
-              key={mode.id}
-              type="button"
-              onClick={() => onViewChange(mode.id)}
-              className="relative rounded-md px-4 py-1.5 text-sm font-medium"
-            >
-              {view === mode.id && (
-                <motion.div
-                  layoutId="base44-active-view"
-                  className="absolute inset-0 rounded-md bg-[var(--surface)] shadow-sm"
-                  transition={{ type: "spring", duration: 0.4, bounce: 0.2 }}
-                />
-              )}
-              <span
-                className={`relative z-10 ${
-                  view === mode.id ? "text-[var(--foreground)]" : "text-[var(--muted)]"
-                }`}
-              >
-                {mode.label}
-              </span>
-            </button>
-          ))}
-        </div>
-
         <button
           type="button"
           className="flex h-9 items-center rounded-lg bg-[var(--foreground)] px-4 text-sm font-medium text-[var(--background)] shadow-sm hover:bg-[#243a2e]"
@@ -105,5 +66,3 @@ export function Base44CalendarHeader({
     </div>
   );
 }
-
-

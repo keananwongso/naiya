@@ -3,8 +3,6 @@
 import { useMemo, useState } from "react";
 import {
   addWeeks,
-  addMonths,
-  addDays,
   eachDayOfInterval,
   endOfMonth,
   formatISO,
@@ -12,21 +10,14 @@ import {
   startOfMonth,
   startOfWeek,
   subWeeks,
-  subMonths,
-  subDays,
 } from "date-fns";
 import { CalendarEvent, DayKey } from "shared/types";
 import {
   sampleInput,
   samplePlan,
-  sampleTranscript,
 } from "shared/sampleData";
 import { Base44CalendarHeader } from "./Base44CalendarHeader";
 import { Base44WeekView } from "./Base44WeekView";
-import { Base44MonthView } from "./Base44MonthView";
-import { Base44DayView } from "./Base44DayView";
-
-type ViewMode = "week" | "month" | "day";
 
 const weekdayKeys: DayKey[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
@@ -40,16 +31,6 @@ type Base44Event = {
   end_date?: string;
   all_day?: boolean;
   color?: "sage" | "lavender" | "coral" | "sky" | "amber";
-};
-
-const dayOffset: Record<DayKey, number> = {
-  Sun: 0,
-  Mon: 1,
-  Tue: 2,
-  Wed: 3,
-  Thu: 4,
-  Fri: 5,
-  Sat: 6,
 };
 
 const sourceColor: Record<CalendarEvent["source"], Base44Event["color"]> = {
@@ -98,7 +79,6 @@ const toBase44EventsForRange = (
 };
 
 export function CalendarShell() {
-  const [view, setView] = useState<ViewMode>("week");
   const [weekStartIso, setWeekStartIso] = useState<string>(() => {
     const monday = startOfWeek(parseISO(sampleInput.weekOf), {
       weekStartsOn: 1,
@@ -120,36 +100,10 @@ export function CalendarShell() {
     setWeekStartIso((current) => {
       const base = parseISO(current);
       if (action === "prev") {
-        if (view === "month") return formatISO(subMonths(base, 1), { representation: "date" });
-        if (view === "day") return formatISO(subDays(base, 1), { representation: "date" });
         return formatISO(subWeeks(base, 1), { representation: "date" });
       }
-      if (view === "month") return formatISO(addMonths(base, 1), { representation: "date" });
-      if (view === "day") return formatISO(addDays(base, 1), { representation: "date" });
       return formatISO(addWeeks(base, 1), { representation: "date" });
     });
-  };
-
-  const upsertEvent = (updated: CalendarEvent) => {
-    setEvents((prev) =>
-      prev.map((event) => (event.id === updated.id ? updated : event)),
-    );
-  };
-
-  const createEvent = (partial: Omit<CalendarEvent, "id">) => {
-    setEvents((prev) => {
-      const id = `custom-${prev.length + 1}`;
-      const next: CalendarEvent = {
-        ...partial,
-        id,
-        source: partial.source ?? "custom",
-      };
-      return [...prev, next];
-    });
-  };
-
-  const deleteEvent = (id: string) => {
-    setEvents((prev) => prev.filter((event) => event.id !== id));
   };
 
   const currentDate = useMemo(() => parseISO(weekStartIso), [weekStartIso]);
@@ -161,26 +115,15 @@ export function CalendarShell() {
   }, [events, currentDate]);
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-full">
       <Base44CalendarHeader
         currentDate={currentDate}
-        view={view}
-        onViewChange={setView}
         onNavigate={handleNavigate}
       />
 
-      {view === "week" && (
+      <div className="flex-1 overflow-hidden">
         <Base44WeekView currentDate={currentDate} events={base44Events} />
-      )}
-
-      {view === "month" && (
-        <Base44MonthView currentDate={currentDate} events={base44Events} />
-      )}
-
-      {view === "day" && (
-        <Base44DayView currentDate={currentDate} events={base44Events} />
-      )}
+      </div>
     </div>
   );
 }
-

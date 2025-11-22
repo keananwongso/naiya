@@ -1,12 +1,17 @@
 import { CalendarShell } from "@/components/CalendarShell";
+import { Sidebar } from "@/components/Sidebar";
+import { ChatPanel } from "@/components/ChatPanel";
+import { sampleTranscript } from "shared/sampleData";
 
 export default function SchedulePage() {
   return (
-    <div className="min-h-screen bg-[var(--background)]">
-      <div className="mx-auto max-w-7xl px-3 py-6 sm:px-5 lg:px-8 lg:py-10">
-        <main>
-          <CalendarShell />
-        </main>
+    <div className="flex h-screen w-full overflow-hidden bg-[var(--background)]">
+      <Sidebar className="w-[280px] shrink-0" />
+      <main className="flex-1 min-w-0 bg-[var(--surface)]">
+        <CalendarShell />
+      </main>
+      <div className="w-[400px] shrink-0">
+        <ChatPanel transcript={sampleTranscript} />
       </div>
     </div>
   );

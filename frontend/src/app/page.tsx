@@ -11,9 +11,9 @@ export default function Home() {
         <main className="mt-4 space-y-4">
           <section className="card rounded-3xl p-5 md:p-6">
             <div className="flex flex-col items-start gap-3">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
               <span>Catch me up</span>
-              <span className="rounded-full border border-[var(--border)] bg-white px-3 py-1 text-[11px] font-semibold text-[var(--foreground)]">
+              <span className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-[11px] font-semibold text-[var(--foreground)]">
                 Week of {sampleWeek.label}
               </span>
             </div>
@@ -26,8 +26,8 @@ export default function Home() {
           </div>
 
             <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl border border-[var(--border)] bg-white px-4 py-3 shadow-[0_16px_36px_rgba(45,71,57,0.08)]">
-                <p className="text-xs uppercase tracking-[0.14em] text-slate-500">
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 shadow-[0_16px_36px_rgba(45,71,57,0.12)]">
+                <p className="text-xs uppercase tracking-[0.14em] text-[var(--muted)]">
                   Todos
                 </p>
                 <ul className="mt-2 space-y-2 text-sm text-[var(--foreground)]">
@@ -45,8 +45,8 @@ export default function Home() {
                 </ul>
               </div>
 
-              <div className="rounded-2xl border border-[var(--border)] bg-white px-4 py-3 shadow-[0_16px_36px_rgba(45,71,57,0.08)]">
-                <p className="text-xs uppercase tracking-[0.14em] text-slate-500">
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 shadow-[0_16px_36px_rgba(45,71,57,0.12)]">
+                <p className="text-xs uppercase tracking-[0.14em] text-[var(--muted)]">
                   Upcoming
                 </p>
                 <ul className="mt-2 space-y-2 text-sm text-[var(--foreground)]">
@@ -68,11 +68,11 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="mt-5 flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/80 p-4 text-center md:flex-row md:text-left">
-              <button className="w-full rounded-full bg-[#2d4739] px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(45,71,57,0.28)] transition hover:bg-[#243a2e] md:w-auto">
+            <div className="mt-5 flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[var(--accent)] bg-[var(--accent-soft)] p-4 text-center md:flex-row md:text-left">
+              <button className="w-full rounded-full bg-[var(--foreground)] px-4 py-3 text-sm font-semibold text-[var(--background)] shadow-[0_16px_40px_rgba(45,71,57,0.28)] transition hover:bg-[#243a2e] md:w-auto">
                 Quick braindump
               </button>
-              <button className="w-full rounded-full border border-[var(--border)] bg-white px-4 py-3 text-sm font-semibold text-[var(--foreground)] shadow-[0_10px_24px_rgba(45,71,57,0.12)] transition hover:bg-[#f3efe7] md:w-auto">
+              <button className="w-full rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] shadow-[0_10px_24px_rgba(45,71,57,0.12)] transition hover:bg-[#f3efe7] md:w-auto">
                 Quick chat with Naiya
               </button>
             </div>

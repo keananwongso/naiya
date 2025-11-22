@@ -29,7 +29,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${display.variable} ${body.variable} antialiased`}>
-        <div className="sticky top-0 z-20 border-b border-[var(--border)] bg-white/80 backdrop-blur">
+        <div className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur">
           <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:max-w-7xl">
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-[#a9c3a2] to-[#2d4739] shadow-[0_10px_26px_rgba(45,71,57,0.35)]" />
@@ -49,7 +49,7 @@ export default function RootLayout({
                 Schedule
               </Link>
             </nav>
-            <button className="rounded-full bg-[#2d4739] px-3 py-2 text-xs font-semibold text-white shadow-[0_14px_30px_rgba(45,71,57,0.28)] transition hover:bg-[#243a2e]">
+            <button className="rounded-full bg-[#2d4739] px-3 py-2 text-xs font-semibold text-[var(--background)] shadow-[0_14px_30px_rgba(45,71,57,0.28)] transition hover:bg-[#243a2e]">
               Quick chat
             </button>
           </div>

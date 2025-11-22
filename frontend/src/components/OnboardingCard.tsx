@@ -5,7 +5,7 @@ type Props = {
 };
 
 const fieldClass =
-  "flex flex-col gap-1 rounded-2xl border border-[var(--border)] bg-white/70 p-4 shadow-sm";
+  "flex flex-col gap-1 rounded-2xl border border-[var(--border)] bg-[var(--surface)]/70 p-4 shadow-sm";
 
 export function OnboardingCard({ input }: Props) {
   const weekDate = new Date(input.weekOf);
@@ -46,7 +46,7 @@ export function OnboardingCard({ input }: Props) {
             Profile
           </div>
           <div className="flex flex-wrap gap-2 text-sm font-medium text-slate-900">
-            <span className="rounded-full bg-slate-900 text-white px-3 py-1">
+            <span className="rounded-full bg-[var(--foreground)] text-[var(--background)] px-3 py-1">
               Week of {weekLabel}
             </span>
             <span className="rounded-full border border-slate-200 px-3 py-1">
@@ -89,7 +89,7 @@ export function OnboardingCard({ input }: Props) {
             <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
               Courses and exams
             </p>
-            <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800">
+            <span className="rounded-full bg-[var(--accent-soft)] px-2 py-1 text-xs font-semibold text-[var(--foreground)]">
               {input.courses.length} courses
             </span>
           </div>
@@ -97,7 +97,7 @@ export function OnboardingCard({ input }: Props) {
             {input.courses.map((course) => (
               <div
                 key={course.id}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
+                className="rounded-xl border border-slate-200 bg-[var(--surface)] px-3 py-2 text-sm text-slate-800"
               >
                 <div className="font-semibold">{course.name}</div>
                 <div className="text-xs text-slate-600">
@@ -113,7 +113,7 @@ export function OnboardingCard({ input }: Props) {
             <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
               Fixed commitments
             </p>
-            <span className="rounded-full bg-slate-900 px-2 py-1 text-xs font-semibold text-white">
+            <span className="rounded-full bg-[var(--foreground)] px-2 py-1 text-xs font-semibold text-[var(--background)]">
               {input.commitments.length} saved
             </span>
           </div>
@@ -121,7 +121,7 @@ export function OnboardingCard({ input }: Props) {
             {input.commitments.map((commitment) => (
               <span
                 key={commitment.id}
-                className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
+                className="rounded-full border border-slate-200 bg-[var(--surface)] px-3 py-2 text-sm text-slate-800"
               >
                 {commitment.title} · {commitment.day} {commitment.start}-
                 {commitment.end}

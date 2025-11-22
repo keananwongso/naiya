@@ -21,7 +21,7 @@ export function ChatPanel({ transcript, notes = [] }: Props) {
             Ask in plain language. Naiya rebalances around you.
           </h2>
         </div>
-        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-800">
+        <span className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs font-semibold text-[var(--foreground)]">
           Natural language edits
         </span>
       </div>
@@ -35,8 +35,8 @@ export function ChatPanel({ transcript, notes = [] }: Props) {
             <div
               className={`max-w-[90%] rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm ${
                 message.role === "naiya"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-                  : "border-slate-200 bg-white text-slate-800"
+                  ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--foreground)]"
+                  : "border-[var(--border)] bg-[var(--background)] text-[var(--foreground)]"
               }`}
             >
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em]">
@@ -54,14 +54,14 @@ export function ChatPanel({ transcript, notes = [] }: Props) {
       </div>
 
       {notes.length ? (
-        <div className="mt-5 rounded-2xl border border-dashed border-slate-200 bg-white/70 p-4">
+        <div className="mt-5 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)]/70 p-4">
           <p className="text-xs uppercase tracking-[0.15em] text-slate-500">
             What Naiya considered
           </p>
           <ul className="mt-2 space-y-1 text-sm text-slate-700">
-            {notes.map((note, index) => (
-              <li key={index} className="flex items-start gap-2">
-                <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                {notes.map((note, index) => (
+                <li key={index} className="flex items-start gap-2">
+                <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
                 <span>{note}</span>
               </li>
             ))}

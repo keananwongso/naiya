@@ -1,0 +1,103 @@
+import React from 'react';
+import { motion } from "framer-motion";
+import {
+    startOfMonth,
+    endOfMonth,
+    startOfWeek,
+    endOfWeek,
+    eachDayOfInterval,
+    isSameMonth,
+    isSameDay,
+    isToday,
+    format
+} from "date-fns";
+import EventCard from './EventCard';
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+export default function MonthView({ currentDate, events, onEventClick, onDayClick }) {
+    const monthStart = startOfMonth(currentDate);
+    const monthEnd = endOfMonth(currentDate);
+    const calendarStart = startOfWeek(monthStart);
+    const calendarEnd = endOfWeek(monthEnd);
+
+    const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+
+    const getEventsForDay = (day) => {
+        return events.filter(event => {
+            const eventDate = new Date(event.start_date);
+            return isSameDay(eventDate, day);
+        });
+    };
+
+    return (
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+            {/* Weekday headers */}
+            <div className="grid grid-cols-7 border-b border-gray-100">
+                {WEEKDAYS.map(day => (
+                    <div
+                        key={day}
+                        className="py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                        {day}
+                    </div>
+                ))}
+            </div>
+
+            {/* Calendar grid */}
+            <div className="grid grid-cols-7">
+                {days.map((day, idx) => {
+                    const dayEvents = getEventsForDay(day);
+                    const isCurrentMonth = isSameMonth(day, currentDate);
+                    const isDayToday = isToday(day);
+
+                    return (
+                        <motion.div
+                            key={day.toString()}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: idx * 0.01 }}
+                            onClick={() => onDayClick(day)}
+                            className={`
+                min-h-32 p-2 border-b border-r border-gray-100
+                transition-colors cursor-pointer hover:bg-gray-50
+                ${!isCurrentMonth ? 'bg-gray-50/50' : ''}
+                ${idx % 7 === 6 ? 'border-r-0' : ''}
+              `}
+                        >
+                            <div className="flex items-center justify-between mb-2">
+                                <span className={`
+                  text-sm font-medium inline-flex items-center justify-center
+                  w-7 h-7 rounded-full transition-all
+                  ${isDayToday ? 'bg-gray-900 text-white' : ''}
+                  ${!isCurrentMonth && !isDayToday ? 'text-gray-400' : 'text-gray-700'}
+                `}>
+                                    {format(day, 'd')}
+                                </span>
+                            </div>
+
+                            <div className="space-y-1">
+                                {dayEvents.slice(0, 3).map(event => (
+                                    <EventCard
+                                        key={event.id}
+                                        event={event}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onEventClick(event);
+                                        }}
+                                        compact
+                                    />
+                                ))}
+                                {dayEvents.length > 3 && (
+                                    <p className="text-xs text-gray-500 font-medium px-2">
+                                        +{dayEvents.length - 3} more
+                                    </p>
+                                )}
+                            </div>
+                        </motion.div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}

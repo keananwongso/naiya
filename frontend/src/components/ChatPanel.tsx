@@ -1,6 +1,6 @@
 "use client";
 
-import { Send } from "lucide-react";
+import { Mic, Send } from "lucide-react";
 
 type ChatMessage = {
   role: "user" | "naiya";
@@ -33,14 +33,13 @@ export function ChatPanel({ transcript, notes = [] }: Props) {
         {transcript.map((message, index) => (
           <div
             key={`${message.role}-${index}`}
-            className={`flex ${message.role === "naiya" ? "justify-end" : "justify-start"}`}
+            className={`flex ${message.role === "naiya" ? "justify-start" : "justify-end"}`}
           >
             <div
-              className={`max-w-[90%] rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm ${
-                message.role === "naiya"
+              className={`max-w-[90%] rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm ${message.role === "naiya"
                   ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--foreground)]"
                   : "border-[var(--border)] bg-[var(--background)] text-[var(--foreground)]"
-              }`}
+                }`}
             >
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em]">
                 <span>{message.role === "naiya" ? "Naiya" : "You"}</span>
@@ -76,12 +75,17 @@ export function ChatPanel({ transcript, notes = [] }: Props) {
         <div className="relative">
           <textarea
             placeholder="Ask Naiya to change your schedule..."
-            className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] p-3 pr-12 text-sm shadow-sm focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none"
-            rows={2}
+            className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] p-3 pr-20 text-sm shadow-sm focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none"
+            rows={1}
           />
-          <button className="absolute right-2 bottom-2 rounded-lg p-1.5 text-[var(--foreground)] hover:bg-[var(--accent-soft)] transition-colors">
-            <Send className="h-4 w-4" />
-          </button>
+          <div className="absolute right-2 bottom-2 flex gap-1">
+            <button className="rounded-lg p-1.5 text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors">
+              <Mic className="h-4 w-4" />
+            </button>
+            <button className="rounded-lg p-1.5 text-[var(--foreground)] hover:bg-[var(--accent-soft)] transition-colors">
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
     </section>

@@ -4,6 +4,7 @@ import {
   DayKey,
   ScheduleInput,
   StudyPlan,
+  Flexibility,
 } from "./types";
 
 const dayOrder: DayKey[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -83,10 +84,10 @@ const buildFixedEvents = (
       day: meeting.day,
       start: meeting.start,
       end: meeting.end,
-      courseId: course.id,
+      course: course.id,
       source: "class" as const,
-      locked: true,
-      details: meeting.location,
+      flexibility: "fixed" as const,
+      type: "ROUTINE" as const,
     })),
   );
 
@@ -97,8 +98,8 @@ const buildFixedEvents = (
     start: commitment.start,
     end: commitment.end,
     source: "commitment" as const,
-    locked: commitment.locked ?? true,
-    details: commitment.type,
+    flexibility: (commitment.locked ? "fixed" : "medium") as Flexibility,
+    type: "COMMITMENT" as const,
   }));
 
   return [...courseBlocks, ...commitmentBlocks];
@@ -164,8 +165,9 @@ const placeStudyBlock = ({
         start: minutesToTime(start),
         end: minutesToTime(end),
         source: "study",
-        courseId: course.id,
-        details: "Pomodoro x3 + recap",
+        course: course.id,
+        type: "STUDY",
+        flexibility: "medium",
       };
 
       events.push(studyEvent);

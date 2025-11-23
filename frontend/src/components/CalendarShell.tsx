@@ -13,7 +13,7 @@ import {
   subWeeks,
   addHours,
 } from "date-fns";
-import { CalendarEvent, DayKey, Tag } from "shared/types";
+import { CalendarEvent, DayKey, Tag, Recurrence } from "shared/types";
 import {
   sampleInput,
   samplePlan,
@@ -36,6 +36,7 @@ type Base44Event = {
   all_day?: boolean;
   color?: string; // Changed to string to support dynamic tag colors
   tagId?: string;
+  recurrence?: Recurrence;
 };
 
 const sourceColor: Record<CalendarEvent["source"], Base44Event["color"]> = {
@@ -143,7 +144,7 @@ export function CalendarShell({
     setEvents((prev) => prev.filter((e) => e.id !== originalId));
   };
 
-  const handleCreateEvent = (event: Base44Event, recurrence?: any) => {
+  const handleCreateEvent = (event: Base44Event, recurrence?: Recurrence) => {
     const newStart = parseISO(event.start_date);
     const newEnd = event.end_date
       ? parseISO(event.end_date)
@@ -159,6 +160,8 @@ export function CalendarShell({
       source: "custom" as const,
       tagId: event.tagId,
       recurrence,
+      type: "OTHER" as const,
+      flexibility: "medium" as const,
     });
 
     const newEvents: CalendarEvent[] = [];
@@ -181,7 +184,7 @@ export function CalendarShell({
     setEvents((prev) => [...prev, ...newEvents]);
   };
 
-  const handleSaveEvent = (updated: Base44Event, recurrence?: any) => {
+  const handleSaveEvent = (updated: Base44Event, recurrence?: Recurrence) => {
     // If recurrence changed, we might need to delete old and create new, 
     // but for now let's just update the single event if no recurrence change logic is requested.
     // The user request implies editing recurrence, which is complex for existing events.
@@ -217,6 +220,8 @@ export function CalendarShell({
             source: "custom" as const,
             tagId: updated.tagId,
             recurrence,
+            type: "OTHER" as const,
+            flexibility: "medium" as const,
           });
 
           const generatedEvents: CalendarEvent[] = [];
@@ -285,8 +290,9 @@ export function CalendarShell({
           start_date: start.toISOString(),
           end_date: end.toISOString(),
           all_day: false,
-          color: color as any, // Cast to any to accept dynamic string colors if needed, or map to preset
+          color: color as string, // Cast to string
           tagId: event.tagId,
+          recurrence: event.recurrence,
         });
       }
     }
@@ -313,6 +319,7 @@ export function CalendarShell({
       </div>
 
       <EventEditor
+        key={selectedEvent?.id ?? "closed"}
         event={selectedEvent}
         isOpen={!!selectedEvent}
         onClose={() => setSelectedEvent(null)}

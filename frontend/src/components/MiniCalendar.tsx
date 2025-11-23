@@ -57,8 +57,8 @@ export function MiniCalendar({ className, currentDate = new Date(), onDateSelect
       </div>
 
       <div className="grid grid-cols-7 gap-0.5 text-center text-[10px]">
-        {["S", "M", "T", "W", "T", "F", "S"].map((day) => (
-          <div key={day} className="py-0.5 font-medium text-[var(--muted)]">
+        {["S", "M", "T", "W", "T", "F", "S"].map((day, i) => (
+          <div key={`${day}-${i}`} className="py-0.5 font-medium text-[var(--muted)]">
             {day}
           </div>
         ))}
@@ -71,15 +71,13 @@ export function MiniCalendar({ className, currentDate = new Date(), onDateSelect
               key={day.toISOString()}
               onClick={() => onDateSelect?.(day)}
               className={`h-6 w-6 rounded-full flex items-center justify-center transition-colors text-[10px] mx-auto
-                ${
-                  !isCurrentMonth
-                    ? "text-[var(--muted)] opacity-50"
-                    : "text-[var(--foreground)]"
+                ${!isCurrentMonth
+                  ? "text-[var(--muted)] opacity-50"
+                  : "text-[var(--foreground)]"
                 }
-                ${
-                  isDayToday
-                    ? "bg-[var(--accent)] text-[var(--foreground)] font-semibold"
-                    : "hover:bg-[var(--background)]"
+                ${isDayToday
+                  ? "bg-[var(--accent)] text-[var(--foreground)] font-semibold"
+                  : "hover:bg-[var(--background)]"
                 }
               `}
             >

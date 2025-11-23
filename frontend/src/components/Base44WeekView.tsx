@@ -22,6 +22,9 @@ import {
 } from "date-fns";
 import { Clock, Trash2 } from "lucide-react";
 import { DraggableEvent } from "./DraggableEvent";
+import { RecurringEditModal } from "./RecurringEditModal";
+import { useState } from "react";
+import { addHours } from "date-fns";
 
 // Reuse type definition
 type Base44Event = {
@@ -33,6 +36,7 @@ type Base44Event = {
   all_day?: boolean;
   color?: string;
   tagId?: string;
+  recurrence?: any; // Using any to avoid importing Recurrence type here if not needed, or import it.
 };
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -79,8 +83,8 @@ function TrashBin() {
     <div
       ref={setNodeRef}
       className={`absolute bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-all ${isOver
-          ? "bg-red-500 text-white scale-110"
-          : "bg-[var(--foreground)] text-[var(--background)]"
+        ? "bg-red-500 text-white scale-110"
+        : "bg-[var(--foreground)] text-[var(--background)]"
         }`}
     >
       <Trash2 className="h-5 w-5" />
@@ -100,6 +104,13 @@ export function Base44WeekView({
   const weekEnd = endOfWeek(currentDate);
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
+  const [recurringModalOpen, setRecurringModalOpen] = useState(false);
+  const [pendingResize, setPendingResize] = useState<{
+    event: Base44Event;
+    start: Date;
+    end: Date;
+  } | null>(null);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -108,8 +119,47 @@ export function Base44WeekView({
     })
   );
 
+  const handleResizeEnd = (event: Base44Event, topDelta: number, heightDelta: number) => {
+    const start = parseISO(event.start_date);
+    const end = event.end_date ? parseISO(event.end_date) : addHours(start, 1);
+
+    const newStart = new Date(start.getTime() + topDelta * 60000);
+    const newEnd = new Date(end.getTime() + (topDelta + heightDelta) * 60000);
+
+    if (event.recurrence && event.recurrence.type !== "none") {
+      setPendingResize({ event, start: newStart, end: newEnd });
+      setRecurringModalOpen(true);
+    } else {
+      onEventUpdate({
+        ...event,
+        start_date: formatISO(newStart),
+        end_date: formatISO(newEnd),
+      });
+    }
+  };
+
+  const handleRecurrenceConfirm = (mode: "single" | "future" | "all") => {
+    if (pendingResize) {
+      // For now, we just update the single event regardless of mode as per user instruction "This will connect to the backend later on"
+      // But we should probably log the mode or handle it if we can.
+      // Since Base44WeekView just calls onEventUpdate, it's up to the parent to handle the mode.
+      // But onEventUpdate currently only takes the event.
+      // We might need to extend onEventUpdate to accept options, or just update this one event for now.
+
+      console.log(`Applying resize with mode: ${mode}`);
+
+      onEventUpdate({
+        ...pendingResize.event,
+        start_date: formatISO(pendingResize.start),
+        end_date: formatISO(pendingResize.end),
+      });
+    }
+    setRecurringModalOpen(false);
+    setPendingResize(null);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
+    const { active, over, delta } = event;
     if (!over) return;
 
     const draggedEvent = active.data.current?.event as Base44Event;
@@ -124,26 +174,50 @@ export function Base44WeekView({
     if (parts[0] !== "cell") return;
 
     const dayIso = parts[1];
-    const newHour = parseInt(parts[2], 10);
+    const hour = parseInt(parts[2], 10);
     const newDay = parseISO(dayIso);
 
-    const originalStart = parseISO(draggedEvent.start_date);
-    const originalMinutes = getMinutes(originalStart);
+    // Calculate 15-minute increments based on delta.y
+    const pixelsPerHour = 48;
+    const minutesPerPixel = 60 / pixelsPerHour;
 
-    const newStart = new Date(newDay);
-    newStart.setHours(newHour, originalMinutes, 0, 0);
+    const originalStart = parseISO(draggedEvent.start_date);
+    const minutesDelta = Math.round(delta.y * minutesPerPixel / 15) * 15;
+
+    const newStartTime = new Date(originalStart.getTime() + minutesDelta * 60000);
+
+    const originalStartDay = new Date(originalStart);
+    originalStartDay.setHours(0, 0, 0, 0);
+
+    const targetDay = new Date(newDay);
+    targetDay.setHours(0, 0, 0, 0);
+
+    const dayDiffMs = targetDay.getTime() - originalStartDay.getTime();
+
+    const finalStart = new Date(newStartTime.getTime() + dayDiffMs);
+
+    const minutes = finalStart.getMinutes();
+    const snappedMinutes = Math.round(minutes / 15) * 15;
+    finalStart.setMinutes(snappedMinutes, 0, 0);
 
     const durationMs = draggedEvent.end_date
       ? parseISO(draggedEvent.end_date).getTime() - originalStart.getTime()
       : 60 * 60 * 1000;
 
-    const newEnd = new Date(newStart.getTime() + durationMs);
+    const finalEnd = new Date(finalStart.getTime() + durationMs);
 
-    onEventUpdate({
-      ...draggedEvent,
-      start_date: formatISO(newStart),
-      end_date: formatISO(newEnd),
-    });
+    // Check recurrence for drag as well? User said "when i finish dragging... if its a weekly recurring event..."
+    // So yes, drag should also trigger it.
+    if (draggedEvent.recurrence && draggedEvent.recurrence.type !== "none") {
+      setPendingResize({ event: draggedEvent, start: finalStart, end: finalEnd });
+      setRecurringModalOpen(true);
+    } else {
+      onEventUpdate({
+        ...draggedEvent,
+        start_date: formatISO(finalStart),
+        end_date: formatISO(finalEnd),
+      });
+    }
   };
 
   const handleCellDoubleClick = (day: Date, hour: number) => {
@@ -203,8 +277,8 @@ export function Base44WeekView({
                   </div>
                   <div
                     className={`text-2xl font-light inline-flex items-center justify-center w-10 h-10 rounded-full transition-all ${isDayToday
-                        ? "bg-[var(--foreground)] text-[var(--background)]"
-                        : "text-[var(--foreground)]"
+                      ? "bg-[var(--foreground)] text-[var(--background)]"
+                      : "text-[var(--foreground)]"
                       }`}
                   >
                     {format(day, "d")}
@@ -241,6 +315,7 @@ export function Base44WeekView({
                         top={getEventTop(event)}
                         height={getEventHeight(event)}
                         onClick={() => onEventClick?.(event)}
+                        onResizeEnd={(topDelta, heightDelta) => handleResizeEnd(event, topDelta, heightDelta)}
                       />
                     ))}
                   </DroppableCell>
@@ -250,6 +325,15 @@ export function Base44WeekView({
           ))}
         </div>
       </DndContext>
+
+      <RecurringEditModal
+        isOpen={recurringModalOpen}
+        onClose={() => {
+          setRecurringModalOpen(false);
+          setPendingResize(null);
+        }}
+        onConfirm={handleRecurrenceConfirm}
+      />
     </div>
   );
 }

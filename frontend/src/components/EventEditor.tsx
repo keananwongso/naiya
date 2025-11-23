@@ -1,5 +1,5 @@
 import { X, Trash2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Tag, Recurrence, DayKey } from "shared/types";
 
 type Base44Event = {
@@ -30,13 +30,8 @@ export function EventEditor({
   onDelete,
   tags,
 }: Props) {
-  const [editedEvent, setEditedEvent] = useState<Base44Event | null>(null);
+  const [editedEvent, setEditedEvent] = useState<Base44Event | null>(event);
   const [recurrence, setRecurrence] = useState<Recurrence>({ type: "none" });
-
-  useEffect(() => {
-    setEditedEvent(event);
-    setRecurrence({ type: "none" }); // Reset recurrence on new event open
-  }, [event]);
 
   if (!isOpen || !editedEvent) return null;
 
@@ -58,8 +53,8 @@ export function EventEditor({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-      <div className="w-[400px] rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl p-6 animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl p-6 animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <div className="flex items-start justify-between mb-6">
           <input
             value={editedEvent.title}
@@ -79,6 +74,46 @@ export function EventEditor({
         </div>
 
         <div className="space-y-6">
+          {/* Date & Time Section */}
+          <div>
+            <label className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider block mb-2">
+              Time
+            </label>
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-[40px_1fr] items-center gap-2">
+                <span className="text-xs font-medium text-[var(--muted)]">Start</span>
+                <input
+                  type="datetime-local"
+                  value={editedEvent.start_date.slice(0, 16)}
+                  onChange={(e) => setEditedEvent({ ...editedEvent, start_date: new Date(e.target.value).toISOString() })}
+                  className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                />
+              </div>
+              <div className="grid grid-cols-[40px_1fr] items-center gap-2">
+                <span className="text-xs font-medium text-[var(--muted)]">End</span>
+                <input
+                  type="datetime-local"
+                  value={editedEvent.end_date?.slice(0, 16) || ""}
+                  onChange={(e) => setEditedEvent({ ...editedEvent, end_date: new Date(e.target.value).toISOString() })}
+                  className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Notes Section */}
+          <div>
+            <label className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider block mb-2">
+              Notes
+            </label>
+            <textarea
+              value={(editedEvent as any).notes || ""}
+              onChange={(e) => setEditedEvent({ ...editedEvent, notes: e.target.value } as any)}
+              placeholder="Add description..."
+              className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--accent)] min-h-[80px] resize-y"
+            />
+          </div>
+
           {/* Tags Section */}
           <div>
             <label className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider block mb-2">

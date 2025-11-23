@@ -71,9 +71,9 @@ export function ScheduleGrid({ events, title }: Props) {
                   >
                     <div className="flex items-center justify-between text-xs uppercase tracking-[0.12em]">
                       <span>{sourceLabel[event.source] ?? "Event"}</span>
-                      {event.locked && (
+                      {event.flexibility === "fixed" && (
                         <span className="rounded-full border border-current px-2 py-0.5 text-[10px]">
-                          Locked
+                          Fixed
                         </span>
                       )}
                     </div>
@@ -83,8 +83,8 @@ export function ScheduleGrid({ events, title }: Props) {
                     <p className="text-sm text-slate-700">
                       {event.start} - {event.end}
                     </p>
-                    {event.details && (
-                      <p className="text-xs text-slate-600">{event.details}</p>
+                    {event.course && (
+                      <p className="text-xs text-slate-600">{event.course}</p>
                     )}
                   </div>
                 ))}
@@ -122,9 +122,9 @@ export function ScheduleGrid({ events, title }: Props) {
                   >
                     <div className="flex items-center justify-between text-xs uppercase tracking-[0.12em]">
                       <span>{sourceLabel[event.source] ?? "Event"}</span>
-                      {event.locked && (
+                      {event.flexibility === "fixed" && (
                         <span className="rounded-full border border-current px-2 py-0.5 text-[10px]">
-                          Locked
+                          Fixed
                         </span>
                       )}
                     </div>

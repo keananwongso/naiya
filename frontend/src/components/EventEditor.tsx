@@ -84,7 +84,7 @@ export function EventEditor({
                 <span className="text-xs font-medium text-[var(--muted)]">Start</span>
                 <input
                   type="datetime-local"
-                  value={editedEvent.start_date.slice(0, 16)}
+                  value={new Date(editedEvent.start_date).toISOString().slice(0, 16)}
                   onChange={(e) => setEditedEvent({ ...editedEvent, start_date: new Date(e.target.value).toISOString() })}
                   className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
                 />
@@ -93,7 +93,7 @@ export function EventEditor({
                 <span className="text-xs font-medium text-[var(--muted)]">End</span>
                 <input
                   type="datetime-local"
-                  value={editedEvent.end_date?.slice(0, 16) || ""}
+                  value={editedEvent.end_date ? new Date(editedEvent.end_date).toISOString().slice(0, 16) : ""}
                   onChange={(e) => setEditedEvent({ ...editedEvent, end_date: new Date(e.target.value).toISOString() })}
                   className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
                 />

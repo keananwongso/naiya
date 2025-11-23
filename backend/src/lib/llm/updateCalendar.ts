@@ -18,11 +18,23 @@ export async function updateCalendar(events: any[], message: string) {
         return rest;
     });
 
+    // Get current date for context
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+    const dayOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][today.getDay()];
+
     const completion = await client.chat.completions.create({
         model: "gpt-5.1",
         messages: [
             { role: "system", content: updateCalendarPrompt },
-            { role: "user", content: JSON.stringify({ events: sanitizedEvents, message }) }
+            {
+                role: "user", content: JSON.stringify({
+                    events: sanitizedEvents,
+                    message,
+                    currentDate: todayStr,
+                    currentDayOfWeek: dayOfWeek
+                })
+            }
         ]
     });
 
@@ -92,15 +104,34 @@ export async function updateCalendar(events: any[], message: string) {
             }
         }
     } else if (intent.type === "create") {
-        updatedEvents.push({
-            id: uuidv4(),
-            title: intent.newTitle || "New Event",
-            type: "OTHER", // Default
-            day: intent.newDate ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date(intent.newDate).getDay()] : "Mon",
-            start: intent.newStart || "09:00",
-            end: intent.newEnd || "10:00",
-            flexibility: intent.flexibility || "medium"
-        });
+        // Check if this is a recurring event (has days array)
+        if (intent.days && intent.days.length > 0) {
+            // Create one event for each day
+            intent.days.forEach((day: any) => {
+                updatedEvents.push({
+                    id: uuidv4(),
+                    title: intent.newTitle || "New Event",
+                    type: "ROUTINE", // Recurring events are ROUTINE type
+                    day: day,
+                    start: intent.newStart || "09:00",
+                    end: intent.newEnd || "10:00",
+                    flexibility: intent.flexibility || "strong",
+                    source: "custom" as const,
+                });
+            });
+        } else {
+            // Single event
+            updatedEvents.push({
+                id: uuidv4(),
+                title: intent.newTitle || "New Event",
+                type: "OTHER",
+                day: intent.newDate ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date(intent.newDate).getDay()] : "Mon",
+                start: intent.newStart || "09:00",
+                end: intent.newEnd || "10:00",
+                flexibility: intent.flexibility || "medium",
+                source: "custom" as const,
+            });
+        }
     }
 
     return {

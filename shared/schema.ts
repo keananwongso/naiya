@@ -101,6 +101,7 @@ export const UpdateCalendarIntentSchema = z.object({
         newStart: z.string().nullable().optional(),
         newEnd: z.string().nullable().optional(),
         newTitle: z.string().nullable().optional(),
-        flexibility: FlexibilitySchema.optional()
+        flexibility: FlexibilitySchema.optional(),
+        days: z.array(z.enum(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"])).nullable().optional(), // For recurring events
     })
 });

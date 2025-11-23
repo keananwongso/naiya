@@ -21,6 +21,9 @@ import {
 import { Base44CalendarHeader } from "./Base44CalendarHeader";
 import { Base44WeekView } from "./Base44WeekView";
 import { EventEditor } from "./EventEditor";
+import { updateCalendar, ScheduleAPIError, processNaiya } from "../lib/api";
+import { useEffect } from "react";
+import { saveCalendar } from "@/lib/calendar-db";
 
 const weekdayKeys: DayKey[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
@@ -85,14 +88,21 @@ const toBase44EventsForRange = (
   return mapped;
 };
 
+
 export function CalendarShell({
   events,
   setEvents,
   tags,
+  onCalendarUpdateRef,
+  setAssistantMessage: setParentAssistantMessage,
+  setIsProcessing: setParentIsProcessing,
 }: {
   events: CalendarEvent[];
   setEvents: React.Dispatch<React.SetStateAction<CalendarEvent[]>>;
-  tags: Tag[]; // Use Tag type from shared/types
+  tags: Tag[];
+  onCalendarUpdateRef?: React.MutableRefObject<((message: string) => Promise<void>) | null>;
+  setAssistantMessage?: React.Dispatch<React.SetStateAction<string>>;
+  setIsProcessing?: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
   const [weekStartIso, setWeekStartIso] = useState<string>(() => {
     const monday = startOfWeek(parseISO(sampleInput.weekOf), {
@@ -102,6 +112,9 @@ export function CalendarShell({
   });
 
   const [selectedEvent, setSelectedEvent] = useState<Base44Event | null>(null);
+  const [localIsProcessing, setLocalIsProcessing] = useState(false);
+  const [localAssistantMessage, setLocalAssistantMessage] = useState<string>("");
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const handleNavigate = (action: "prev" | "next" | "today") => {
     if (action === "today") {
@@ -120,8 +133,8 @@ export function CalendarShell({
   };
 
   const handleEventUpdate = (updated: Base44Event) => {
-    setEvents((prev) =>
-      prev.map((event) => {
+    setEvents((prev) => {
+      const nextEvents = prev.map((event) => {
         if (event.id === updated.originalId) {
           const newStart = parseISO(updated.start_date);
           const newEnd = updated.end_date
@@ -136,12 +149,23 @@ export function CalendarShell({
           };
         }
         return event;
-      })
-    );
+      });
+
+      saveCalendar(nextEvents).catch((err) =>
+        console.error("Failed to save calendar after update", err)
+      );
+      return nextEvents;
+    });
   };
 
   const handleDeleteEvent = (originalId: string) => {
-    setEvents((prev) => prev.filter((e) => e.id !== originalId));
+    setEvents((prev) => {
+      const nextEvents = prev.filter((e) => e.id !== originalId);
+      saveCalendar(nextEvents).catch((err) =>
+        console.error("Failed to save calendar after delete", err)
+      );
+      return nextEvents;
+    });
   };
 
   const handleCreateEvent = (event: Base44Event, recurrence?: Recurrence) => {
@@ -181,8 +205,58 @@ export function CalendarShell({
       newEvents.push(createSingleEvent(format(newStart, "EEE") as DayKey, newStart, newEnd));
     }
 
-    setEvents((prev) => [...prev, ...newEvents]);
+    setEvents((prev) => {
+      const nextEvents = [...prev, ...newEvents];
+      saveCalendar(nextEvents).catch((err) =>
+        console.error("Failed to save calendar after create", err)
+      );
+      return nextEvents;
+    });
   };
+
+  const handleCalendarUpdate = async (message: string) => {
+    const setProcessing = setParentIsProcessing || setLocalIsProcessing;
+    const setMessage = setParentAssistantMessage || setLocalAssistantMessage;
+
+    setProcessing(true);
+    setApiError(null);
+
+    try {
+      // Unified Naiya pipeline handles adds/moves/deletes and produces full calendar
+      const backendEvents = events.map(e => ({
+        ...e,
+        flexibility: e.flexibility || (e.type === "COMMITMENT" ? "fixed" : "medium"),
+      }));
+
+      const result = await processNaiya(backendEvents, message);
+      setMessage(result.assistantMessage);
+
+      if (result.events) {
+        setEvents(result.events);
+        saveCalendar(result.events).catch((err) =>
+          console.error("Failed to save calendar after AI update", err)
+        );
+      }
+    } catch (error) {
+      if (error instanceof ScheduleAPIError) {
+        setApiError(error.message);
+        setMessage(`Error: ${error.message}`);
+      } else {
+        setApiError("An unexpected error occurred");
+        setMessage("Sorry, I encountered an error processing your request.");
+      }
+      console.error("Calendar update error:", error);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Expose handleCalendarUpdate via ref
+  useEffect(() => {
+    if (onCalendarUpdateRef) {
+      onCalendarUpdateRef.current = handleCalendarUpdate;
+    }
+  }, [onCalendarUpdateRef, events]);
 
   const handleSaveEvent = (updated: Base44Event, recurrence?: Recurrence) => {
     // If recurrence changed, we might need to delete old and create new, 
@@ -240,10 +314,17 @@ export function CalendarShell({
             });
           }
 
-          return [...updatedEvents, ...generatedEvents];
+          const combined = [...updatedEvents, ...generatedEvents];
+          saveCalendar(combined).catch((err) =>
+            console.error("Failed to save calendar after recurrence edit", err)
+          );
+          return combined;
         }
       }
 
+      saveCalendar(updatedEvents).catch((err) =>
+        console.error("Failed to save calendar after edit", err)
+      );
       return updatedEvents;
     });
   };

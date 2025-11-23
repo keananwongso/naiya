@@ -3,7 +3,7 @@ export type Day =
 
 export type DayKey = Day;
 
-export type Flexibility = "fixed" | "strong" | "medium" | "low";
+export type Flexibility = "fixed" | "strong" | "medium" | "low" | "high";
 
 export interface RoutineItem {
   title: string;

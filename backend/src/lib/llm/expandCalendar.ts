@@ -1,71 +1,84 @@
-import OpenAI from "openai";
-import { DecisionJSON } from "./types";
+import { CalendarAction } from "./types";
 import { CalendarEvent } from "@shared/types";
 import { v4 as uuidv4 } from "uuid";
 
-const expansionPrompt = `You are Naiya's calendar expansion engine. Apply the given actions to the current calendar and output the complete updated calendar.
-
-Input:
-1. Current calendar (CalendarEvent[])
-2. Actions to apply (DecisionJSON)
-
-Your job:
-- Apply each action in order
-- For "add" actions: create new CalendarEvent objects (one per day)
-- For "move" actions: update the specified event
-- For "delete" actions: remove the specified event
-- For "block_day" actions: add a blocking event for that day
-- For "distribute_study" actions: create study blocks across specified days
-
-IMPORTANT: Each "add" action represents ONE day. Do not try to combine multiple days into one event.
-
-Output the COMPLETE calendar as CalendarEvent[] array.
-
-CalendarEvent schema:
-{
-  "id": "uuid",
-  "title": "Event Title",
-  "type": "ROUTINE" | "COMMITMENT" | "STUDY" | "LOCKIN" | "OTHER",
-  "day": "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun",
-  "start": "HH:MM",
-  "end": "HH:MM",
-  "flexibility": "fixed" | "strong" | "medium" | "low",
-  "source": "class" | "commitment" | "study" | "custom",
-  "course"?: "optional course name"
+export interface DecisionWrapper {
+    actions: CalendarAction[];
+    reasoning?: string;
+    protected?: string[];
 }
 
-For recurring events (days array), create separate CalendarEvent for each day.
-Preserve all existing events unless they're being moved or deleted.
-Return ONLY the JSON array of events.`;
+export async function expandCalendar(decision: DecisionWrapper, currentCalendar: CalendarEvent[]): Promise<CalendarEvent[]> {
+    // Clone current calendar to avoid mutation
+    let updatedCalendar = [...currentCalendar];
 
-export async function expandCalendar(decision: DecisionJSON, currentCalendar: CalendarEvent[]): Promise<CalendarEvent[]> {
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    // Apply actions in order
+    for (const action of decision.actions) {
+        if (action.type === "add") {
+            const newEvent: CalendarEvent = {
+                id: uuidv4(),
+                title: action.title,
+                day: action.day,
+                start: action.start,
+                end: action.end,
+                type: "ROUTINE", // Default type, could be inferred from title/source
+                flexibility: action.flexibility || "medium",
+                source: "custom", // Default source
+                course: action.title // Assuming title is course for now if class
+            };
 
-    const completion = await client.chat.completions.create({
-        model: "gpt-5-mini",
-        messages: [
-            { role: "system", content: expansionPrompt },
-            {
-                role: "user",
-                content: JSON.stringify({
-                    currentCalendar,
-                    actions: decision.actions
-                })
+            // Infer type/source based on title keywords (simple heuristic)
+            const lowerTitle = action.title.toLowerCase();
+            if (lowerTitle.includes("class") || lowerTitle.includes("lecture") || /^[a-z]{3,4}\s?\d{3}/.test(lowerTitle)) {
+                newEvent.type = "COMMITMENT";
+                newEvent.source = "class";
+            } else if (lowerTitle.includes("study") || lowerTitle.includes("homework")) {
+                newEvent.type = "STUDY";
+                newEvent.source = "study";
+            } else if (lowerTitle.includes("gym") || lowerTitle.includes("lunch")) {
+                newEvent.type = "ROUTINE";
+                newEvent.source = "custom";
+            } else if (lowerTitle.includes("meeting")) {
+                newEvent.type = "COMMITMENT";
+                newEvent.source = "commitment";
             }
-        ],
-        max_completion_tokens: 2000
-    });
 
-    const raw = completion.choices[0].message?.content || "[]";
-    let events = JSON.parse(raw) as CalendarEvent[];
+            updatedCalendar.push(newEvent);
 
-    // Ensure all events have IDs
-    events = events.map(e => ({
-        ...e,
-        id: e.id || uuidv4(),
-        source: e.source || "custom" as const,
-        flexibility: e.flexibility || "medium" as const
-    }));
+        } else if (action.type === "modify") {
+            // Find event to modify by title and roughly day/time if possible
+            // Since we don't have ID, we look for a match.
+            // The prompt gives us the TARGET state. So we might need to find an event that looks similar?
+            // Or maybe the prompt implies "Change the event that IS this to BE this"?
+            // Actually, "modify" usually implies "Change X to Y".
+            // But the schema has only one set of fields.
+            // If the user says "Move Math from 10am to 12pm", the LLM might output:
+            // { type: "modify", title: "Math", day: "Mon", start: "12:00", end: "13:00" }
+            // So we look for "Math" on "Mon" (maybe at old time? but we don't have old time).
+            // We'll look for an event with the same title on the same day (or any day if unique).
 
-    return events;
+            const index = updatedCalendar.findIndex(e =>
+                e.title.toLowerCase() === action.title.toLowerCase() &&
+                (e.day === action.day || !action.day) // If day matches or not specified (though schema says day is required)
+            );
+
+            if (index !== -1) {
+                updatedCalendar[index] = {
+                    ...updatedCalendar[index],
+                    day: action.day,
+                    start: action.start,
+                    end: action.end,
+                    flexibility: action.flexibility || updatedCalendar[index].flexibility
+                };
+            }
+
+        } else if (action.type === "delete") {
+            // Find event to delete by title and day
+            updatedCalendar = updatedCalendar.filter(e =>
+                !(e.title.toLowerCase() === action.title.toLowerCase() && e.day === action.day)
+            );
+        }
+    }
+
+    return updatedCalendar;
 }

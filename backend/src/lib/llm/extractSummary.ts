@@ -1,61 +1,92 @@
 import OpenAI from "openai";
 import { SummaryJSON, IntentType } from "./types";
 
-const extractionPrompt = `You are Naiya's data extraction engine. Extract structured information from the user's message.
+const extractionPrompt = `You are Naiya, an AI that organizes a user’s weekly schedule.
 
-Extract:
-1. **events**: One event object per day/time combination
-2. **deadlines**: Due dates for assignments, exams, projects
-3. **constraints**: Days the user is sick, traveling, or unavailable
-4. **tasks**: Things that need time allocated (studying, projects)
-5. **preferences**: Wake/sleep times, study preferences
-6. **emotionalState**: User's mood (stressed, calm, overwhelmed, neutral)
+Your job is to process the user’s natural-language message and output a single structured JSON object that contains:
 
-CRITICAL RULES FOR EVENTS:
-- Each event object represents ONE day and ONE time block
-- NEVER group multiple days into the same event if times differ
-- If a user says "Tue/Thu at 9-10, but Friday at 12-1", output THREE separate events
-- Use "day" field (singular) for each event: "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun"
-- Times in HH:MM format: "10:00", "14:30"
+1. events: recurring or fixed events (classes, work, routine)
+2. deadlines: exams, assignments, due dates
+3. tasks: tasks that need hours allocated
+4. preferences: wake time, sleep time, study windows
+5. actions: additions/updates/deletions Naiya should perform
+6. assistantMessage: a short natural-language summary to show the user
 
-FEW-SHOT EXAMPLE:
+You MUST return ONLY JSON. No chain-of-thought. No explanations.
 
-USER: "I have LING100 on Tuesday and Thursday from 9 to 10, but Friday it's 12 to 1"
-
-OUTPUT:
+=========================
+JSON SCHEMA (STRICT)
+=========================
 {
-  "intent": "add_event",
-  "events": [
-    { "title": "LING100", "day": "Tue", "start": "09:00", "end": "10:00", "type": "class", "flexibility": "medium" },
-    { "title": "LING100", "day": "Thu", "start": "09:00", "end": "10:00", "type": "class", "flexibility": "medium" },
-    { "title": "LING100", "day": "Fri", "start": "12:00", "end": "13:00", "type": "class", "flexibility": "medium" }
-  ],
-  "emotionalState": "neutral",
-  "rawMessage": "I have LING100 on Tuesday and Thursday from 9 to 10, but Friday it's 12 to 1"
-}
-
-Respond with ONLY valid JSON matching this structure:
-{
-  "intent": "brain_dump" | "add_event" | "modify_event" | "cancel_day" | "small_command" | "chat_only",
   "events": [
     {
-      "title": "Event Name",
-      "day": "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun",
+      "title": "string",
+      "day": "Mon|Tue|Wed|Thu|Fri|Sat|Sun",
       "start": "HH:MM",
       "end": "HH:MM",
-      "type": "class" | "meeting" | "personal",
-      "flexibility": "low" | "medium" | "high"
+      "type": "class|personal|routine|other",
+      "flexibility": "fixed|strong|medium|low|high"
     }
   ],
-  "deadlines": [...],
-  "constraints": [...],
-  "tasks": [...],
-  "preferences": {...},
-  "emotionalState": "neutral",
-  "rawMessage": "..."
+  "deadlines": [
+    {
+      "title": "string",
+      "date": "YYYY-MM-DD",
+      "type": "exam|project|assignment",
+      "flexibility": "fixed"
+    }
+  ],
+  "tasks": [
+    {
+      "title": "string",
+      "estimatedTimeHours": number,
+      "dueDate": "YYYY-MM-DD",
+      "flexibility": "medium|low|high"
+    }
+  ],
+  "preferences": {
+    "wake": "HH:MM",
+    "sleep": "HH:MM",
+    "studyStartAfter": "HH:MM",
+    "studyEndBy": "HH:MM"
+  },
+  "actions": [
+    {
+      "type": "add|delete|modify",
+      "title": "string",
+      "day": "Mon|Tue|Wed|Thu|Fri|Sat|Sun",
+      "start": "HH:MM",
+      "end": "HH:MM",
+      "flexibility": "fixed|strong|medium|low|high"
+    }
+  ],
+  "assistantMessage": "string"
 }
 
-Omit any fields that don't apply. Be precise with times and dates.`;
+=========================
+RULES
+=========================
+• ALWAYS fill the JSON correctly.  
+• If uncertain, leave fields empty rather than hallucinating.  
+• Automatically normalize:
+    - day names → Mon/Tue/...
+    - times → 24-hour HH:MM
+    - vague times (“morning”) → approximate (07:00)
+• Detect which items are recurring vs one-off.
+• Extract total study HOURS from phrases like:
+      “I need 8 hours”, “study a bit”, “review”, etc.
+• FLEXIBILITY:
+      class = low
+      exam date = fixed
+      self-planned study blocks = medium
+      gym / routine personal = high
+• CRITICAL: You MUST generate an "add" action in the 'actions' array for EVERY event you extract in the 'events' array.
+• Output a short assistantMessage summarizing what you understood.
+
+=========================
+RESPONSE FORMAT
+=========================
+Return ONLY ONE JSON block. No markdown. No commentary.`;
 
 export async function extractSummary(message: string, intent: IntentType): Promise<SummaryJSON> {
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -66,7 +97,7 @@ export async function extractSummary(message: string, intent: IntentType): Promi
   const dayOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][today.getDay()];
 
   const completion = await client.chat.completions.create({
-    model: "gpt-5-mini",
+    model: "gpt-5.1",
     messages: [
       { role: "system", content: extractionPrompt },
       {
@@ -79,11 +110,22 @@ export async function extractSummary(message: string, intent: IntentType): Promi
         })
       }
     ],
-    max_completion_tokens: 1000
+    max_completion_tokens: 1500
   });
 
   const raw = completion.choices[0].message?.content || "{}";
-  const result = JSON.parse(raw) as SummaryJSON;
+  let result: SummaryJSON;
+
+  try {
+    result = JSON.parse(raw) as SummaryJSON;
+  } catch (e) {
+    console.error("Failed to parse LLM output:", raw);
+    // Fallback
+    result = {
+      assistantMessage: "I'm sorry, I had trouble processing that. Could you try again?",
+      actions: []
+    };
+  }
 
   // Ensure rawMessage is set
   result.rawMessage = message;

@@ -14,79 +14,61 @@ export interface IntentClassification {
     needsExtraction: boolean;
 }
 
-// Stage 2: Summary Extraction
+// Stage 2: Summary Extraction (Consolidated)
 export interface ExtractedEvent {
     title: string;
-    day: "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";  // Single day per event
-    date?: string;    // For specific date events: "2025-11-28"
-    start: string;    // "10:00"
-    end: string;      // "12:00"
-    type?: "class" | "deadline" | "meeting" | "personal" | "study";
-    flexibility?: "low" | "medium" | "high";
+    day: "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
+    start: string;    // "HH:MM"
+    end: string;      // "HH:MM"
+    type: "class" | "personal" | "routine" | "other";
+    flexibility: "fixed" | "strong" | "medium" | "low" | "high";
 }
 
 export interface ExtractedDeadline {
     title: string;
-    date: string;
-    course?: string;
-    importance?: "low" | "medium" | "high";
-}
-
-export interface ExtractedConstraint {
-    type: "sick" | "travel" | "blocked_day" | "busy";
-    date?: string;
-    days?: string[];
-    reason?: string;
+    date: string; // "YYYY-MM-DD"
+    type: "exam" | "project" | "assignment";
+    flexibility: "fixed";
 }
 
 export interface ExtractedTask {
     title: string;
-    hoursNeeded?: number;
-    deadline?: string;
-    priority?: "low" | "medium" | "high";
+    estimatedTimeHours: number;
+    dueDate?: string; // "YYYY-MM-DD"
+    flexibility: "medium" | "low" | "high";
 }
 
 export interface ExtractedPreferences {
-    wake?: string;
-    sleep?: string;
-    maxStudyHours?: number;
-    preferredStudyTimes?: string[];
+    wake?: string; // "HH:MM"
+    sleep?: string; // "HH:MM"
+    studyStartAfter?: string; // "HH:MM"
+    studyEndBy?: string; // "HH:MM"
+}
+
+export interface CalendarAction {
+    type: "add" | "delete" | "modify";
+    title: string;
+    day: "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
+    start: string; // "HH:MM"
+    end: string; // "HH:MM"
+    flexibility: "fixed" | "strong" | "medium" | "low" | "high";
 }
 
 export interface SummaryJSON {
-    intent: IntentType;
     events?: ExtractedEvent[];
     deadlines?: ExtractedDeadline[];
-    constraints?: ExtractedConstraint[];
     tasks?: ExtractedTask[];
     preferences?: ExtractedPreferences;
-    emotionalState?: "stressed" | "calm" | "overwhelmed" | "neutral";
-    rawMessage: string;
+    actions?: CalendarAction[];
+    assistantMessage: string;
+
+    // Internal fields (not from LLM)
+    intent?: IntentType;
+    rawMessage?: string;
 }
 
-// Stage 3: Reasoning / Decision-Making
-export type ActionType = "add" | "move" | "delete" | "block_day" | "distribute_study";
-
-export interface CalendarAction {
-    type: ActionType;
-    eventId?: string;           // For move/delete
-    title?: string;             // For add
-    day?: string;               // Single target day (e.g., "Mon")
-    start?: string;             // "14:00"
-    end?: string;               // "16:00"
-    duration?: number;          // Hours (for study distribution)
-    reason?: string;            // Why this action was taken
-    flexibility?: "fixed" | "strong" | "medium" | "low";
-}
-
-export interface DecisionJSON {
-    actions: CalendarAction[];
-    reasoning: string;  // Brief explanation of the overall strategy
-    protected: string[]; // IDs of events that were protected (fixed flexibility)
-}
+// Stage 3: Reasoning / Decision-Making (Merged into SummaryJSON)
+// The 'actions' field in SummaryJSON now serves the purpose of DecisionJSON
 
 // Stage 4: Calendar Expansion
 // Uses CalendarEvent[] from shared/types
-
-// Stage 5: Chat Response
-// Just a string, no special type needed

@@ -79,45 +79,68 @@ export function TagsManager({ tags, onAddTag, onUpdateTag, onDeleteTag }: Props)
 
             <div className="flex-1 overflow-y-auto space-y-2">
                 {isAdding && (
-                    <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm animate-in slide-in-from-top-2 mb-2">
-                        <div className="flex justify-between items-center mb-2">
-                            <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
-                                {editingTagId ? "Edit Tag" : "New Tag"}
-                            </span>
-                            <button onClick={resetForm}>
-                                <X className="h-3 w-3 text-[var(--muted)]" />
-                            </button>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                        <div className="w-full max-w-sm bg-[var(--surface)] rounded-xl border border-[var(--border)] shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
+                            <div className="flex justify-between items-center mb-6">
+                                <span className="text-lg font-semibold text-[var(--foreground)]">
+                                    {editingTagId ? "Edit Tag" : "Create New Tag"}
+                                </span>
+                                <button onClick={resetForm} className="p-1 hover:bg-[var(--surface-hover)] rounded-full transition-colors">
+                                    <X className="h-5 w-5 text-[var(--muted)]" />
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-1.5 block">
+                                        Tag Name
+                                    </label>
+                                    <input
+                                        value={newTagName}
+                                        onChange={(e) => setNewTagName(e.target.value)}
+                                        placeholder="e.g., Deep Work"
+                                        className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-all"
+                                        autoFocus
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-2 block">
+                                        Color
+                                    </label>
+                                    <div className="flex flex-wrap gap-3">
+                                        {COLORS.map((color) => (
+                                            <button
+                                                key={color}
+                                                onClick={() => setNewTagColor(color)}
+                                                className={`w-8 h-8 rounded-full transition-all ${newTagColor === color
+                                                    ? "ring-2 ring-offset-2 ring-[var(--foreground)] scale-110"
+                                                    : "hover:scale-110 hover:opacity-80"
+                                                    }`}
+                                                style={{ backgroundColor: `var(--color-${color}-500, #ccc)` }}
+                                                title={color}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="pt-2 flex gap-3">
+                                    <button
+                                        onClick={resetForm}
+                                        className="flex-1 px-4 py-2.5 rounded-lg border border-[var(--border)] text-[var(--foreground)] text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={!newTagName.trim()}
+                                        className="flex-1 px-4 py-2.5 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium disabled:opacity-50 hover:opacity-90 transition-opacity shadow-sm"
+                                    >
+                                        {editingTagId ? "Save Changes" : "Create Tag"}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-
-                        <input
-                            value={newTagName}
-                            onChange={(e) => setNewTagName(e.target.value)}
-                            placeholder="Tag Name"
-                            className="w-full bg-[var(--background)] border border-[var(--border)] rounded px-2 py-1 text-sm mb-2 focus:outline-none focus:border-[var(--accent)]"
-                            autoFocus
-                        />
-
-                        <div className="flex flex-wrap gap-1.5 mb-3">
-                            {COLORS.map((color) => (
-                                <button
-                                    key={color}
-                                    onClick={() => setNewTagColor(color)}
-                                    className={`w-5 h-5 rounded-full border transition-all ${newTagColor === color
-                                            ? "ring-1 ring-offset-1 ring-[var(--foreground)] border-transparent scale-110"
-                                            : "border-[var(--border)] hover:scale-105"
-                                        }`}
-                                    style={{ backgroundColor: `var(--color-${color}-500, #ccc)` }}
-                                />
-                            ))}
-                        </div>
-
-                        <button
-                            onClick={handleSave}
-                            disabled={!newTagName.trim()}
-                            className="w-full bg-[var(--foreground)] text-[var(--background)] py-1.5 rounded text-xs font-medium disabled:opacity-50 hover:opacity-90 transition-opacity"
-                        >
-                            {editingTagId ? "Update" : "Create"}
-                        </button>
                     </div>
                 )}
 

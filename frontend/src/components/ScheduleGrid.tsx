@@ -8,12 +8,12 @@ type Props = {
 
 const sourceStyles: Record<string, string> = {
   class:
-    "border-emerald-200/70 bg-emerald-50 text-emerald-900 shadow-[0_14px_40px_rgba(16,185,129,0.12)]",
+    "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--foreground)] shadow-[0_14px_40px_rgba(45,71,57,0.16)]",
   commitment:
-    "border-blue-200/70 bg-blue-50 text-blue-900 shadow-[0_14px_40px_rgba(59,130,246,0.12)]",
+    "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--foreground)] shadow-[0_14px_40px_rgba(45,71,57,0.16)]",
   study:
-    "border-amber-200/70 bg-amber-50 text-amber-900 shadow-[0_14px_40px_rgba(251,191,36,0.12)]",
-  custom: "border-slate-200 bg-white text-slate-900",
+    "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--foreground)] shadow-[0_14px_40px_rgba(45,71,57,0.16)]",
+  custom: "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)]",
 };
 
 const sourceLabel: Record<string, string> = {
@@ -39,7 +39,7 @@ export function ScheduleGrid({ events, title }: Props) {
             single source of truth. Drag to tweak later.
           </p>
         </div>
-        <div className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-800">
+        <div className="rounded-full border border-slate-200 bg-[var(--surface)] px-3 py-1 text-xs font-semibold text-slate-800">
           Drag, resize, regenerate
         </div>
       </div>
@@ -52,11 +52,11 @@ export function ScheduleGrid({ events, title }: Props) {
           return (
             <div
               key={day}
-              className="rounded-2xl border border-slate-200/80 bg-white/70 p-4 shadow-sm"
+              className="rounded-2xl border border-slate-200/80 bg-[var(--surface)]/80 p-4 shadow-sm"
             >
               <div className="flex items-baseline justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-2.5 w-2.5 rounded-full bg-emerald-500/70" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-[var(--accent)]" />
                   <p className="text-sm font-semibold text-slate-900">{day}</p>
                 </div>
                 <span className="text-xs text-slate-500">
@@ -71,9 +71,9 @@ export function ScheduleGrid({ events, title }: Props) {
                   >
                     <div className="flex items-center justify-between text-xs uppercase tracking-[0.12em]">
                       <span>{sourceLabel[event.source] ?? "Event"}</span>
-                      {event.locked && (
+                      {event.flexibility === "fixed" && (
                         <span className="rounded-full border border-current px-2 py-0.5 text-[10px]">
-                          Locked
+                          Fixed
                         </span>
                       )}
                     </div>
@@ -83,13 +83,13 @@ export function ScheduleGrid({ events, title }: Props) {
                     <p className="text-sm text-slate-700">
                       {event.start} - {event.end}
                     </p>
-                    {event.details && (
-                      <p className="text-xs text-slate-600">{event.details}</p>
+                    {event.course && (
+                      <p className="text-xs text-slate-600">{event.course}</p>
                     )}
                   </div>
                 ))}
                 {!dayEvents.length && (
-                  <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-[var(--background)] px-3 py-4 text-sm text-slate-500">
                     Free to schedule
                   </div>
                 )}
@@ -106,7 +106,7 @@ export function ScheduleGrid({ events, title }: Props) {
           return (
             <div
               key={day}
-              className="rounded-2xl border border-slate-200/80 bg-white/70 p-4 shadow-sm"
+              className="rounded-2xl border border-slate-200/80 bg-[var(--surface)]/80 p-4 shadow-sm"
             >
               <div className="flex items-baseline justify-between">
                 <p className="text-sm font-semibold text-slate-900">{day}</p>
@@ -122,9 +122,9 @@ export function ScheduleGrid({ events, title }: Props) {
                   >
                     <div className="flex items-center justify-between text-xs uppercase tracking-[0.12em]">
                       <span>{sourceLabel[event.source] ?? "Event"}</span>
-                      {event.locked && (
+                      {event.flexibility === "fixed" && (
                         <span className="rounded-full border border-current px-2 py-0.5 text-[10px]">
-                          Locked
+                          Fixed
                         </span>
                       )}
                     </div>
@@ -137,7 +137,7 @@ export function ScheduleGrid({ events, title }: Props) {
                   </div>
                 ))}
                 {!dayEvents.length && (
-                  <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-[var(--background)] px-3 py-4 text-sm text-slate-500">
                     Free to schedule
                   </div>
                 )}

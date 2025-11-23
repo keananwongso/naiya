@@ -1,20 +1,28 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f3ec; /* Cream */
-  --surface: #fffaf2;
-  --foreground: #2d4739; /* Deep Forest */
+  --background: #f7f3ec;
+  --surface: #f7f3ec;
+  --foreground: #2d4739;
   --muted: #4a6155;
   --border: #e4dfd5;
-  --accent: #a9c3a2; /* Sage */
-  --accent-soft: #d8f3dc; /* Mint */
+  --accent: #a9c3a2;
+  --accent-soft: #d8f3dc;
   --glow: 0 26px 70px rgba(45, 71, 57, 0.16);
+
+  /* Tag Colors */
+  --color-sage-500: #a9c3a2;
+  --color-lavender-500: #dcd6e5;
+  --color-coral-500: #e5d6d6;
+  --color-sky-500: #d6e2e5;
+  --color-amber-500: #e5e2d6;
+  --color-emerald-500: #d6e5da;
+  --color-rose-500: #e5d6dd;
+  --color-indigo-500: #d6dce5;
 }
 
 body {
-  background: radial-gradient(140% 140% at 10% 20%, #ffffff 0%, #f7f3ec 45%),
-    radial-gradient(140% 140% at 90% 10%, #f0ede4 0%, #f7f3ec 45%),
-    var(--background);
+  background: var(--background);
   color: var(--foreground);
   font-family: var(--font-body), "Helvetica Neue", Arial, sans-serif;
   letter-spacing: 0.01em;
@@ -33,17 +41,36 @@ a {
 }
 
 .card {
-  background: linear-gradient(180deg, #fffdf7 0%, #f9f4eb 100%);
+  background: var(--surface);
   border: 1px solid var(--border);
   box-shadow: 0 26px 64px rgba(45, 71, 57, 0.12);
 }
 
 .accent-pill {
-  background: linear-gradient(120deg, rgba(169, 195, 162, 0.3), rgba(216, 243, 220, 0.6));
+  background: var(--accent-soft);
   border: 1px solid rgba(45, 71, 57, 0.12);
   color: var(--foreground);
 }
 
 @theme inline {
   --font-sans: var(--font-body);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
 }

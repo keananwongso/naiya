@@ -27,7 +27,6 @@ export const sampleInput: ScheduleInput = {
     maxDailyStudyHours: 5,
     quietHours: { start: "22:30", end: "07:00" },
     mostlyFreeDay: "Sun",
-    notes: "Seattle campus",
   },
   courses: [
     {

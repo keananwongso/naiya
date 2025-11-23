@@ -74,13 +74,13 @@ export async function updateCalendar(
 }
 
 export async function processNaiya(
-    events: CalendarEvent[],
+    calendar: CalendarEvent[],
     message: string
-): Promise<{
-    assistantMessage: string;
-    events: CalendarEvent[];
-}> {
-    return callAPI("/naiya/process", { calendar: events, message });
+): Promise<{ events: CalendarEvent[]; deadlines: any[]; assistantMessage: string }> {
+    return callAPI<{ events: CalendarEvent[]; deadlines: any[]; assistantMessage: string }>(
+        "/naiya/process",
+        { calendar, message }
+    );
 }
 
 export async function generateScheduleFromText(text: string): Promise<{

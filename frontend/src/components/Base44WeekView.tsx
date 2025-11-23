@@ -23,8 +23,9 @@ import {
 import { Clock, Trash2 } from "lucide-react";
 import { DraggableEvent } from "./DraggableEvent";
 import { RecurringEditModal } from "./RecurringEditModal";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { addHours } from "date-fns";
+import { getCurrentTimeInMinutes } from "@/lib/dateUtils";
 
 // Reuse type definition
 type Base44Event = {
@@ -77,8 +78,11 @@ function DroppableCell({
   );
 }
 
-function TrashBin() {
+function TrashBin({ isDragging }: { isDragging: boolean }) {
   const { setNodeRef, isOver } = useDroppable({ id: "trash" });
+
+  if (!isDragging) return null;
+
   return (
     <div
       ref={setNodeRef}
@@ -110,6 +114,29 @@ export function Base44WeekView({
     start: Date;
     end: Date;
   } | null>(null);
+  const [currentTimeMinutes, setCurrentTimeMinutes] = useState(getCurrentTimeInMinutes());
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Update current time every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTimeMinutes(getCurrentTimeInMinutes());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Debug: log the time indicator position
+  useEffect(() => {
+    const calculatedTop = (currentTimeMinutes / 60) * 48 + 88;
+    console.log('Time indicator debug:', {
+      currentTimeMinutes,
+      hours: currentTimeMinutes / 60,
+      calculatedPixels: (currentTimeMinutes / 60) * 48,
+      withOffset: calculatedTop,
+      currentTime: new Date().toLocaleTimeString()
+    });
+  }, [currentTimeMinutes]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -258,8 +285,16 @@ export function Base44WeekView({
 
   return (
     <div className="flex flex-col h-full bg-[var(--surface)] relative">
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <TrashBin />
+      <DndContext
+        sensors={sensors}
+        onDragStart={() => setIsDragging(true)}
+        onDragEnd={(event) => {
+          handleDragEnd(event);
+          setIsDragging(false);
+        }}
+        onDragCancel={() => setIsDragging(false)}
+      >
+        <TrashBin isDragging={isDragging} />
         <div className="flex-1 overflow-auto overscroll-contain relative">
           <div className="sticky top-0 z-20 grid grid-cols-[60px_repeat(7,1fr)] border-b border-[var(--border)] bg-[var(--surface)]">
             <div className="p-4 border-r border-[var(--border)] flex items-center justify-center">
@@ -323,6 +358,24 @@ export function Base44WeekView({
               })}
             </div>
           ))}
+
+          {/* Current time indicator - red line spanning across all days */}
+          {days.some(day => isToday(day)) && (
+            <div
+              className="absolute left-[60px] right-0 z-30 pointer-events-none"
+              style={{
+                // Each hour row is 48px tall (h-12 = 48px)
+                // Current time in minutes / 60 = hours from midnight
+                // Multiply by 48 to get pixels from top of grid (which starts at midnight/12 AM)
+                // The sticky header height needs to be accounted for
+                top: `calc(${(currentTimeMinutes / 60) * 48}px + 136px)`,
+              }}
+            >
+              <div className="relative h-0.5 bg-red-500">
+                <div className="absolute -left-1.5 -top-1 h-3 w-3 rounded-full bg-red-500" />
+              </div>
+            </div>
+          )}
         </div>
       </DndContext>
 

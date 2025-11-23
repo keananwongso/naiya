@@ -1,5 +1,9 @@
+"use client";
+
 import { dayNames, orderByStart } from "shared/generator";
 import { CalendarEvent } from "shared/types";
+import { getCurrentDay, getCurrentTimeInMinutes, timeToMinutes } from "@/lib/dateUtils";
+import { useEffect, useState } from "react";
 
 type Props = {
   events: CalendarEvent[];
@@ -24,6 +28,28 @@ const sourceLabel: Record<string, string> = {
 };
 
 export function ScheduleGrid({ events, title }: Props) {
+  const [currentDay, setCurrentDay] = useState(getCurrentDay());
+  const [currentTimeMinutes, setCurrentTimeMinutes] = useState(getCurrentTimeInMinutes());
+
+  // Update current time every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentDay(getCurrentDay());
+      setCurrentTimeMinutes(getCurrentTimeInMinutes());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Calculate position of time indicator (0-100%)
+  const getTimeIndicatorPosition = () => {
+    // Assuming calendar shows 12 AM to 12 AM (24 hours)
+    const startMinutes = 0; // 12 AM
+    const endMinutes = 24 * 60; // 12 AM next day
+    const position = ((currentTimeMinutes - startMinutes) / (endMinutes - startMinutes)) * 100;
+    return Math.max(0, Math.min(100, position));
+  };
+
   return (
     <section className="card rounded-3xl p-6">
       <div className="flex items-baseline justify-between gap-2">
@@ -49,15 +75,25 @@ export function ScheduleGrid({ events, title }: Props) {
           const dayEvents = events
             .filter((event) => event.day === day)
             .sort(orderByStart);
+          const isCurrentDay = day === currentDay;
+
           return (
             <div
               key={day}
-              className="rounded-2xl border border-slate-200/80 bg-[var(--surface)]/80 p-4 shadow-sm"
+              className={`rounded-2xl border p-4 shadow-sm relative ${isCurrentDay
+                  ? "border-[var(--accent)] bg-[var(--accent-soft)]/20 ring-2 ring-[var(--accent)]/30"
+                  : "border-slate-200/80 bg-[var(--surface)]/80"
+                }`}
             >
               <div className="flex items-baseline justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-2.5 w-2.5 rounded-full bg-[var(--accent)]" />
-                  <p className="text-sm font-semibold text-slate-900">{day}</p>
+                  <div className={`h-2.5 w-2.5 rounded-full ${isCurrentDay ? "bg-[var(--accent)] animate-pulse" : "bg-[var(--accent)]"
+                    }`} />
+                  <p className={`text-sm font-semibold ${isCurrentDay ? "text-[var(--accent)]" : "text-slate-900"
+                    }`}>
+                    {day}
+                    {isCurrentDay && <span className="ml-2 text-xs text-slate-500">(Today)</span>}
+                  </p>
                 </div>
                 <span className="text-xs text-slate-500">
                   {dayEvents.length} items
@@ -94,6 +130,19 @@ export function ScheduleGrid({ events, title }: Props) {
                   </div>
                 )}
               </div>
+
+              {/* Current time indicator */}
+              {isCurrentDay && (
+                <div
+                  className="absolute left-0 right-0 flex items-center pointer-events-none"
+                  style={{ top: `${getTimeIndicatorPosition()}%` }}
+                >
+                  <div className="h-0.5 w-full bg-red-500 relative">
+                    <div className="absolute -left-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500" />
+                    <div className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500" />
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -103,13 +152,22 @@ export function ScheduleGrid({ events, title }: Props) {
           const dayEvents = events
             .filter((event) => event.day === day)
             .sort(orderByStart);
+          const isCurrentDay = day === currentDay;
+
           return (
             <div
               key={day}
-              className="rounded-2xl border border-slate-200/80 bg-[var(--surface)]/80 p-4 shadow-sm"
+              className={`rounded-2xl border p-4 shadow-sm relative ${isCurrentDay
+                  ? "border-[var(--accent)] bg-[var(--accent-soft)]/20 ring-2 ring-[var(--accent)]/30"
+                  : "border-slate-200/80 bg-[var(--surface)]/80"
+                }`}
             >
               <div className="flex items-baseline justify-between">
-                <p className="text-sm font-semibold text-slate-900">{day}</p>
+                <p className={`text-sm font-semibold ${isCurrentDay ? "text-[var(--accent)]" : "text-slate-900"
+                  }`}>
+                  {day}
+                  {isCurrentDay && <span className="ml-2 text-xs text-slate-500">(Today)</span>}
+                </p>
                 <span className="text-xs text-slate-500">
                   {dayEvents.length} items
                 </span>
@@ -142,6 +200,19 @@ export function ScheduleGrid({ events, title }: Props) {
                   </div>
                 )}
               </div>
+
+              {/* Current time indicator */}
+              {isCurrentDay && (
+                <div
+                  className="absolute left-0 right-0 flex items-center pointer-events-none"
+                  style={{ top: `${getTimeIndicatorPosition()}%` }}
+                >
+                  <div className="h-0.5 w-full bg-red-500 relative">
+                    <div className="absolute -left-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500" />
+                    <div className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500" />
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}

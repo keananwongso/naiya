@@ -56,10 +56,10 @@ export interface CalendarAction {
 
 export interface SummaryJSON {
     events?: ExtractedEvent[];
-    deadlines?: ExtractedDeadline[];
+    deadlines?: ExtractedDeadline[];  // Deadlines with due dates, no specific times
     tasks?: ExtractedTask[];
     preferences?: ExtractedPreferences;
-    actions?: CalendarAction[];
+    actions?: CalendarAction[];  // Actions for time-based events only
     assistantMessage: string;
 
     // Internal fields (not from LLM)

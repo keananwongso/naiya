@@ -140,6 +140,15 @@ export default function Home() {
   const [timer, setTimer] = useState(0); // in seconds
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Initialize completed items from mock data
   useEffect(() => {
@@ -203,10 +212,10 @@ export default function Home() {
           </div>
           <div className="text-right hidden md:block">
             <div className="text-2xl font-mono font-medium">
-              {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>
             <div className="text-sm text-[var(--muted-foreground)]">
-              {new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
+              {currentTime.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
             </div>
           </div>
         </div>

@@ -58,57 +58,60 @@ export async function handleNaiyaProcess(req: Request) {
         }
         console.timeEnd("Stage 2 (Extract & Reason)");
 
-        // Stage 3: Expand Calendar (Deterministic)
-        console.time("Stage 3 (Expand)");
-        console.log("\n[Stage 3] Expanding calendar...");
+        // If summary has actions but no events, create fallback events from actions
+        if (summary.actions && summary.actions.length > 0 && (!summary.events || summary.events.length === 0)) {
+            console.log("⚠️  Actions exist but no events. Creating fallback events from actions.");
+            summary.events = summary.actions.map(action => ({
+                title: action.title,
+                day: action.day,
+                start: action.start,
+                end: action.end,
+                type: "other" as const,
+                flexibility: action.flexibility
+            }));
+        }
 
-        // Adapt SummaryJSON actions to DecisionJSON format expected by expandCalendar
-        // actually expandCalendar expects DecisionJSON, but we can adapt it or update expandCalendar.
-        // Let's look at expandCalendar.ts. It expects DecisionJSON { actions: ... }
-        // Our SummaryJSON has actions: ... so we can pass it directly if types match.
-        // The types in SummaryJSON.actions are slightly different (string vs enum for flexibility).
-        // We updated types.ts so CalendarAction is shared? No, I defined CalendarAction in types.ts
-        // Let's check expandCalendar.ts usage.
-
-        // Fallback: If actions are empty but events exist, auto-generate "add" actions
-        if ((!summary.actions || summary.actions.length === 0) && summary.events && summary.events.length > 0) {
-            console.log("⚠️ [Stage 2] Actions missing but events found. Auto-generating 'add' actions...");
+        // If summary has events but no actions, create fallback actions
+        if (summary.events && summary.events.length > 0 && (!summary.actions || summary.actions.length === 0)) {
+            console.log("⚠️  Events exist but no actions. Creating fallback 'add' actions.");
             summary.actions = summary.events.map(event => ({
-                type: "add",
+                type: "add" as const,
                 title: event.title,
                 day: event.day,
                 start: event.start,
                 end: event.end,
-                flexibility: event.flexibility || "medium"
+                flexibility: event.flexibility
             }));
         }
 
+        // Stage 3: Expand Calendar (apply actions to calendar)
+        console.time("Stage 3 (Expand)");
+        console.log("\n[Stage 3] Expanding calendar...");
         const decision = {
             actions: summary.actions || [],
             reasoning: "Consolidated extraction",
             protected: []
         };
-
-        const updatedCalendar = await expandCalendar(decision, currentCalendar);
-        console.log(`✅ Updated calendar: ${updatedCalendar.length} events`);
+        const updatedEvents = await expandCalendar(decision, currentCalendar);
+        console.log(`✅ Updated calendar: ${updatedEvents.length} events`);
         console.timeEnd("Stage 3 (Expand)");
 
-        console.log("✅ Response:", summary.assistantMessage);
-        console.log("\n🎉 [NAIYA PIPELINE] Complete!");
         console.timeEnd("Total Pipeline");
-        console.log(""); // Empty line
+        console.log("\n✅ [NAIYA PIPELINE] Complete!\n");
 
+        // Return both events and deadlines
         return Response.json({
-            assistantMessage: summary.assistantMessage,
-            events: updatedCalendar
+            events: updatedEvents,
+            deadlines: summary.deadlines || [],  // Return deadlines separately
+            assistantMessage: summary.assistantMessage || "I've updated your schedule.",
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("❌ [NAIYA PIPELINE] Error:", error);
         return Response.json(
             {
                 error: "Failed to process request",
-                details: error instanceof Error ? error.message : "Unknown error"
+                details: error.message,
             },
             { status: 500 }
         );

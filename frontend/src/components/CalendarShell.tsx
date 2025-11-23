@@ -237,6 +237,27 @@ export function CalendarShell({
           console.error("Failed to save calendar after AI update", err)
         );
       }
+
+      // Save deadlines to Supabase if any were returned
+      if (result.deadlines && result.deadlines.length > 0) {
+        const { addDeadline } = await import("@/lib/deadline-db");
+
+        // Add each deadline individually
+        for (const d of result.deadlines) {
+          try {
+            await addDeadline({
+              title: d.title,
+              course: d.course,
+              dueDate: d.date,
+              importance: d.importance || 'medium',
+              completed: false,
+            });
+          } catch (err) {
+            console.error("Failed to add deadline:", d.title, err);
+          }
+        }
+        console.log(`Added ${result.deadlines.length} deadline(s) to Supabase`);
+      }
     } catch (error) {
       if (error instanceof ScheduleAPIError) {
         setApiError(error.message);

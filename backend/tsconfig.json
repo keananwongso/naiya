@@ -1,0 +1,26 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "strict": true,
+        "skipLibCheck": true,
+        "types": [
+            "node"
+        ],
+        "jsx": "react-jsx",
+        "baseUrl": ".",
+        "paths": {
+            "@shared/*": [
+                "../shared/*"
+            ],
+            "@/*": [
+                "./*"
+            ]
+        }
+    },
+    "include": [
+        "src/**/*",
+        "../shared/**/*"
+    ]
+}

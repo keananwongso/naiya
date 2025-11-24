@@ -19,8 +19,8 @@ export async function expandCalendar(decision: DecisionWrapper, currentCalendar:
                 id: uuidv4(),
                 title: action.title,
                 day: action.day,
-                start: action.start,
-                end: action.end,
+                start: action.start || "00:00",
+                end: action.end || "00:00",
                 type: "ROUTINE", // Default type, could be inferred from title/source
                 flexibility: action.flexibility || "medium",
                 source: "custom", // Default source
@@ -66,17 +66,51 @@ export async function expandCalendar(decision: DecisionWrapper, currentCalendar:
                 updatedCalendar[index] = {
                     ...updatedCalendar[index],
                     day: action.day,
-                    start: action.start,
-                    end: action.end,
+                    start: action.start || updatedCalendar[index].start,
+                    end: action.end || updatedCalendar[index].end,
                     flexibility: action.flexibility || updatedCalendar[index].flexibility
                 };
             }
 
         } else if (action.type === "delete") {
-            // Find event to delete by title and day
-            updatedCalendar = updatedCalendar.filter(e =>
-                !(e.title.toLowerCase() === action.title.toLowerCase() && e.day === action.day)
-            );
+            // Find event to delete by title, day, and optionally time
+            updatedCalendar = updatedCalendar.filter(e => {
+                // Loose title matching: check if one includes the other
+                const t1 = e.title.toLowerCase();
+                const t2 = action.title.toLowerCase();
+                const titleMatch = t1 === t2 || t1.includes(t2) || t2.includes(t1);
+
+                const dayMatch = e.day === action.day;
+
+                // If action has a start time, require it to match (exact or close?)
+                // For now, exact match on start string.
+                // The LLM is instructed to extract from currentSchedule, so it should match.
+                const timeMatch = action.start ? e.start === action.start : true;
+
+                // Return false to keep the event (if it matches, we filter it out)
+                return !(titleMatch && dayMatch && timeMatch);
+            });
+
+        } else if (action.type === "exclude_date") {
+            // Find the recurring event and add the date to excludedDates
+            const index = updatedCalendar.findIndex(e => {
+                const t1 = e.title.toLowerCase();
+                const t2 = action.title.toLowerCase();
+                const titleMatch = t1 === t2 || t1.includes(t2) || t2.includes(t1);
+                const dayMatch = e.day === action.day;
+                return titleMatch && dayMatch;
+            });
+
+            if (index !== -1 && action.date) {
+                const event = updatedCalendar[index];
+                const excludedDates = event.excludedDates || [];
+                if (!excludedDates.includes(action.date)) {
+                    updatedCalendar[index] = {
+                        ...event,
+                        excludedDates: [...excludedDates, action.date]
+                    };
+                }
+            }
         }
     }
 

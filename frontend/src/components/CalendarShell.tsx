@@ -62,7 +62,13 @@ const toBase44EventsForRange = (
       day.getDay()
     ] as DayKey;
 
-    const matching = events.filter((event) => event.day === weekday);
+    const matching = events.filter((event) => {
+      if (event.day !== weekday) return false;
+      // Check if this specific date is excluded
+      const dateStr = format(day, 'yyyy-MM-dd');
+      if (Array.isArray(event.excludedDates) && event.excludedDates.includes(dateStr)) return false;
+      return true;
+    });
     for (const event of matching) {
       const [sh, sm] = event.start.split(":").map(Number);
       const [eh, em] = event.end.split(":").map(Number);
@@ -370,7 +376,12 @@ export function CalendarShell({
         day.getDay()
       ] as DayKey;
 
-      const matching = events.filter((event) => event.day === weekday);
+      const matching = events.filter((event) => {
+        if (event.day !== weekday) return false;
+        const dateStr = format(day, 'yyyy-MM-dd');
+        if (Array.isArray(event.excludedDates) && event.excludedDates.includes(dateStr)) return false;
+        return true;
+      });
       for (const event of matching) {
         const [sh, sm] = event.start.split(":").map(Number);
         const [eh, em] = event.end.split(":").map(Number);

@@ -46,12 +46,13 @@ export interface ExtractedPreferences {
 }
 
 export interface CalendarAction {
-    type: "add" | "delete" | "modify";
+    type: "add" | "delete" | "modify" | "exclude_date";
     title: string;
     day: "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
-    start: string; // "HH:MM"
-    end: string; // "HH:MM"
-    flexibility: "fixed" | "strong" | "medium" | "low" | "high";
+    start?: string; // "HH:MM"
+    end?: string; // "HH:MM"
+    flexibility?: "fixed" | "strong" | "medium" | "low" | "high";
+    date?: string; // For exclude_date action (YYYY-MM-DD)
 }
 
 export interface SummaryJSON {

@@ -3,6 +3,7 @@ import { classifyIntent } from "../lib/llm/classifyIntent.js";
 import { extractSummary } from "../lib/llm/extractSummary.js";
 import { expandCalendar } from "../lib/llm/expandCalendar.js";
 import { SummaryJSON } from "../lib/llm/types.js";
+import { v4 as uuidv4 } from "uuid";
 
 export async function handleNaiyaProcess(req: Request) {
     try {
@@ -35,7 +36,7 @@ export async function handleNaiyaProcess(req: Request) {
         console.time("Stage 2 (Extract & Reason)");
         if (classification.needsExtraction) {
             console.log("\n[Stage 2] Extracting summary & reasoning...");
-            summary = await extractSummary(message, classification.intent);
+            summary = await extractSummary(message, classification.intent, currentCalendar);
             console.log("✅ Summary:", JSON.stringify(summary, null, 2));
         } else {
             // For simple chats, we might still want to run extraction if we want the AI to respond naturally
@@ -100,9 +101,14 @@ export async function handleNaiyaProcess(req: Request) {
         console.log("\n✅ [NAIYA PIPELINE] Complete!\n");
 
         // Return both events and deadlines
+        const deadlinesWithIds = (summary.deadlines || []).map(d => ({
+            ...d,
+            id: (d as any).id || uuidv4()
+        }));
+
         return Response.json({
             events: updatedEvents,
-            deadlines: summary.deadlines || [],  // Return deadlines separately
+            deadlines: deadlinesWithIds,
             assistantMessage: summary.assistantMessage || "I've updated your schedule.",
         });
 

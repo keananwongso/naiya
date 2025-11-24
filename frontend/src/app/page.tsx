@@ -1,81 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Play, Square, CheckCircle2, Clock, Plus } from "lucide-react";
-
-// --- Types ---
-
-interface Tag {
-  id: string;
-  name: string;
-  color: string;
-}
-
-interface ChecklistItem {
-  id: string;
-  text: string;
-  completed: boolean;
-}
-
-interface Session {
-  id: string;
-  title: string;
-  tag: Tag;
-  startTime: string;
-  duration: string;
-  checklist?: ChecklistItem[];
-}
-
-// --- Mock Data ---
-
-const todaySessions: Session[] = [
-  {
-    id: "1",
-    title: "Deep Work: Project Phoenix",
-    tag: { id: "t1", name: "Work", color: "emerald" },
-    startTime: "09:00 AM",
-    duration: "90m",
-    checklist: [
-      { id: "c1", text: "Review architecture specs", completed: true },
-      { id: "c2", text: "Draft core API endpoints", completed: false },
-      { id: "c3", text: "Update documentation", completed: false },
-    ],
-  },
-  {
-    id: "2",
-    title: "Linear Algebra Review",
-    tag: { id: "t2", name: "Study", color: "emerald" },
-    startTime: "11:00 AM",
-    duration: "45m",
-  },
-  {
-    id: "3",
-    title: "Gym Session",
-    tag: { id: "t3", name: "Personal", color: "emerald" },
-    startTime: "12:00 PM",
-    duration: "60m",
-  },
-  {
-    id: "4",
-    title: "Team Sync",
-    tag: { id: "t4", name: "Meeting", color: "emerald" },
-    startTime: "01:30 PM",
-    duration: "30m",
-  },
-];
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { Clock, Play, Square, Calendar as CalendarIcon, Mic, Send, X, CheckCircle2, Plus } from "lucide-react";
+import { format } from "date-fns";
+import { CalendarEvent } from "shared/types";
+import { loadCalendar, saveCalendar } from "@/lib/calendar-db";
+import { loadDeadlines, Deadline } from "@/lib/deadline-db";
+import { processNaiya } from "@/lib/api";
 
 // --- Helper Functions ---
-
-const formatTime = (seconds: number) => {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-};
-
-const getDurationColor = (duration: string) => {
-  // Use Pale Mint #D8F3DC for all durations, with dark text for contrast
-  return "!bg-[#D8F3DC] !text-[var(--foreground)] !border-transparent";
-};
+// (None currently needed)
 
 // --- UI Components ---
 
@@ -136,11 +72,38 @@ const Checkbox = ({ checked, onChange }: { checked: boolean; onChange: () => voi
 // --- Main Component ---
 
 export default function Home() {
-  const [activeSession, setActiveSession] = useState<Session | null>(null);
-  const [timer, setTimer] = useState(0); // in seconds
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [deadlines, setDeadlines] = useState<Deadline[]>([]);
+  const router = useRouter();
+
+  // Braindump state
+  const [isBraindumpOpen, setIsBraindumpOpen] = useState(false);
+  const [braindumpText, setBraindumpText] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Load calendar events and deadlines from Supabase
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const [loadedEvents, loadedDeadlines] = await Promise.all([
+          loadCalendar(),
+          loadDeadlines()
+        ]);
+        if (isMounted) {
+          setEvents(loadedEvents);
+          setDeadlines(loadedDeadlines);
+        }
+      } catch (error) {
+        console.error("Failed to load data:", error);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Update current time every second
   useEffect(() => {
@@ -150,55 +113,53 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  // Initialize completed items from mock data
-  useEffect(() => {
-    const initialCompleted = new Set<string>();
-    todaySessions.forEach((s) => {
-      s.checklist?.forEach((c) => {
-        if (c.completed) initialCompleted.add(c.id);
-      });
-    });
-    setCompletedItems(initialCompleted);
-  }, []);
 
-  // Timer logic
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isTimerRunning && activeSession) {
-      interval = setInterval(() => {
-        setTimer((prev) => prev - 1);
-      }, 1000);
+
+  // Get today's events
+  const todayEvents = events.filter(event => {
+    const today = format(currentTime, 'EEE');
+    return event.day === today;
+  });
+
+  // Get upcoming deadlines
+  const upcomingDeadlines = deadlines
+    .filter(d => !d.completed)
+    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+    .slice(0, 3);
+
+
+
+  // Braindump submit handler
+  const handleBraindumpSubmit = async () => {
+    if (!braindumpText.trim()) return;
+
+    setIsProcessing(true);
+    try {
+      // Call the API to process the text
+      const result = await processNaiya(events, braindumpText);
+
+      // Update local state with new data
+      if (result.events) {
+        setEvents(result.events);
+        // Save to Supabase
+        saveCalendar(result.events).catch(err =>
+          console.error("Failed to save calendar after braindump:", err)
+        );
+      }
+      if (result.deadlines) setDeadlines(result.deadlines);
+
+      // Clear and close
+      setBraindumpText("");
+      setIsBraindumpOpen(false);
+
+      // Redirect to schedule page
+      router.push("/schedule");
+    } catch (error) {
+      console.error("Failed to process braindump:", error);
+    } finally {
+      setIsProcessing(false);
     }
-    return () => clearInterval(interval);
-  }, [isTimerRunning, activeSession]);
-
-  const startSession = (session: Session) => {
-    setActiveSession(session);
-    // Parse duration "90m" -> 5400 seconds
-    const minutes = parseInt(session.duration.replace("m", ""));
-    setTimer(minutes * 60);
-    setIsTimerRunning(true);
   };
-
-  const completeSession = () => {
-    setIsTimerRunning(false);
-    setActiveSession(null);
-    setTimer(0);
-  };
-
-  const toggleChecklistItem = (itemId: string) => {
-    const newCompleted = new Set(completedItems);
-    if (newCompleted.has(itemId)) {
-      newCompleted.delete(itemId);
-    } else {
-      newCompleted.add(itemId);
-    }
-    setCompletedItems(newCompleted);
-  };
-
-  // Find the next session (first one that isn't active)
-  // In a real app, this would filter by time/completion status
-  const nextSession = todaySessions.find((s) => s.id !== activeSession?.id);
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] p-4 md:p-8 pb-24">
@@ -221,114 +182,140 @@ export default function Home() {
         </div>
 
         {/* Active Session or Next Up */}
-        {activeSession ? (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold flex items-center gap-2">
-                <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
-                </span>
-                Now Focus
-              </h2>
-              <Button variant="outline" onClick={completeSession} className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/20">
-                <Square className="mr-2 h-4 w-4 fill-current" />
-                End Session
-              </Button>
-            </div>
-
-            <Card className="p-6 border-l-4 border-l-rose-500">
-              <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-                <div className="space-y-4 flex-1">
-                  <div>
-                    <Badge
-                      className="border-transparent shadow-sm font-semibold !bg-[#D8F3DC] !text-[var(--foreground)]"
-                    >
-                      {activeSession.tag.name}
-                    </Badge>
-                    <h3 className="text-2xl font-bold mt-2">{activeSession.title}</h3>
-                    <p className="text-[var(--muted-foreground)] flex items-center gap-2 mt-1">
-                      <Clock className="h-4 w-4" />
-                      {activeSession.startTime} • {activeSession.duration}
-                    </p>
-                  </div>
-
-                  {activeSession.checklist && (
-                    <div className="space-y-3 pt-2">
-                      <h4 className="text-sm font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Session Goals</h4>
-                      <div className="space-y-2">
-                        {activeSession.checklist.map((item) => (
-                          <div key={item.id} className="flex items-start gap-3 group">
-                            <Checkbox
-                              checked={completedItems.has(item.id)}
-                              onChange={() => toggleChecklistItem(item.id)}
-                            />
-                            <span className={`text-sm transition-all ${completedItems.has(item.id) ? "text-[var(--muted-foreground)] line-through" : ""}`}>
-                              {item.text}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+        {/* Next Up */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">Next Up</h2>
+          {todayEvents.length > 0 ? (
+            <Card className="p-6 hover:shadow-md transition-shadow group cursor-pointer">
+              <div className="flex items-start justify-between">
+                <div className="space-y-2">
+                  <Badge className="border-transparent shadow-sm font-semibold !bg-[#D8F3DC] !text-[var(--foreground)]">
+                    {todayEvents[0].type || "Event"}
+                  </Badge>
+                  <h3 className="text-2xl font-bold">{todayEvents[0].title}</h3>
+                  <p className="text-[var(--muted-foreground)] flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    {todayEvents[0].start} - {todayEvents[0].end}
+                  </p>
                 </div>
-
-                <div className="flex flex-col items-center justify-center bg-[var(--secondary)]/50 rounded-xl p-6 min-w-[200px]">
-                  <div className="text-5xl font-mono font-bold tracking-tighter tabular-nums">
-                    {formatTime(timer)}
-                  </div>
-                  <div className="text-sm text-[var(--muted-foreground)] mt-2">remaining</div>
-                  <div className="flex gap-2 mt-4">
-                    <Button
-                      variant="ghost"
-                      onClick={() => setIsTimerRunning(!isTimerRunning)}
-                      className="h-8 w-8 p-0 rounded-full"
-                    >
-                      {isTimerRunning ? <Square className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current" />}
-                    </Button>
-                  </div>
-                </div>
+                <Button className="shrink-0 transition-all group-hover:scale-105 group-hover:bg-[#a9c3a2] group-hover:text-[var(--foreground)] hover:!bg-[#D8F3DC]">
+                  <Play className="mr-2 h-4 w-4 fill-current" />
+                  Start
+                </Button>
               </div>
             </Card>
-          </section>
-        ) : (
+          ) : (
+            <Card className="p-8 text-center text-[var(--muted-foreground)]">
+              <p>No events scheduled for today!</p>
+            </Card>
+          )}
+        </section>
+
+        {/* Upcoming Deadlines */}
+        {upcomingDeadlines.length > 0 && (
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold">Next Up</h2>
-            {nextSession ? (
-              <Card className="p-6 hover:shadow-md transition-shadow group cursor-pointer">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2">
-                    <Badge
-                      className="border-transparent shadow-sm font-semibold !bg-[#D8F3DC] !text-[var(--foreground)]"
-                    >
-                      {nextSession.tag.name}
+            <h2 className="text-xl font-semibold">Upcoming Deadlines</h2>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {upcomingDeadlines.map((deadline) => (
+                <Card key={deadline.id} className="p-4 hover:shadow-md transition-shadow">
+                  <div className="flex justify-between items-start mb-2">
+                    <Badge className={deadline.importance === 'high' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}>
+                      {deadline.course || 'Task'}
                     </Badge>
-                    <h3 className="text-2xl font-bold">{nextSession.title}</h3>
-                    <p className="text-[var(--muted-foreground)] flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      {nextSession.startTime} • {nextSession.duration}
-                    </p>
+                    <span className="text-xs text-[var(--muted-foreground)]">
+                      {(() => {
+                        try {
+                          return format(new Date(deadline.dueDate), 'MMM d');
+                        } catch (e) {
+                          return 'No date';
+                        }
+                      })()}
+                    </span>
                   </div>
-                  <Button onClick={() => startSession(nextSession)} className="shrink-0 transition-all group-hover:scale-105 group-hover:bg-[#a9c3a2] group-hover:text-[var(--foreground)] hover:!bg-[#D8F3DC]">
-                    <Play className="mr-2 h-4 w-4 fill-current" />
-                    Start Session
-                  </Button>
-                </div>
-              </Card>
-            ) : (
-              <Card className="p-8 text-center text-[var(--muted-foreground)]">
-                <p>No more sessions scheduled for today!</p>
-              </Card>
-            )}
+                  <h3 className="font-semibold truncate">{deadline.title}</h3>
+                </Card>
+              ))}
+            </div>
           </section>
         )}
 
-        {/* Braindump Button (Moved) */}
-        <div className="flex justify-center pt-0 pb-12 -mt-2">
-          <Button className="w-full rounded-xl h-12 px-6 shadow-md text-base !bg-[#D8F3DC] text-[var(--foreground)] transition-all hover:!bg-[#a9c3a2]">
-            <Plus className="mr-2 h-5 w-5" />
-            Braindump
-          </Button>
+        {/* Braindump Popup */}
+        <div className="flex justify-center pt-0 pb-12 -mt-2 relative z-50">
+          <AnimatePresence mode="wait">
+            {!isBraindumpOpen ? (
+              <motion.div
+                key="button"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="w-full"
+              >
+                <Button
+                  onClick={() => setIsBraindumpOpen(true)}
+                  className="w-full rounded-xl h-12 px-6 shadow-md text-base !bg-[#D8F3DC] text-[var(--foreground)] transition-all hover:!bg-[#a9c3a2]"
+                >
+                  <Plus className="mr-2 h-5 w-5" />
+                  Braindump
+                </Button>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="popup"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className="w-full bg-[var(--card)] rounded-xl shadow-lg border border-[var(--border)] overflow-hidden"
+              >
+                <div className="p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-[var(--muted-foreground)]">What's on your mind?</span>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setIsBraindumpOpen(false)}
+                      className="h-6 w-6 p-0 hover:bg-transparent"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <textarea
+                    value={braindumpText}
+                    onChange={(e) => setBraindumpText(e.target.value)}
+                    placeholder="I have a meeting tomorrow at 10am..."
+                    className="w-full min-h-[80px] bg-transparent resize-none outline-none text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]/50"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleBraindumpSubmit();
+                      }
+                    }}
+                  />
+
+                  <div className="flex justify-between items-center mt-2 pt-2 border-t border-[var(--border)]/50">
+                    <Button variant="ghost" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--accent)]/50">
+                      <Mic className="h-4 w-4 mr-2" />
+                      <span className="text-xs">Record</span>
+                    </Button>
+
+                    <Button
+                      onClick={handleBraindumpSubmit}
+                      disabled={!braindumpText.trim() || isProcessing}
+                      className="h-8 px-4 bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 rounded-lg text-xs font-medium"
+                    >
+                      {isProcessing ? (
+                        <span className="animate-pulse">Processing...</span>
+                      ) : (
+                        <>
+                          Send <Send className="ml-2 h-3 w-3" />
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Today's Schedule */}
@@ -344,25 +331,24 @@ export default function Home() {
             {/* Vertical Line */}
             <div className="absolute left-6 top-4 bottom-4 w-px bg-[var(--border)]"></div>
 
-            {todaySessions.map((session, index) => {
-              const isActive = activeSession?.id === session.id;
-              const isPast = !isActive && index < todaySessions.findIndex(s => s.id === activeSession?.id); // Simple past logic for demo
+            {todayEvents.map((event, index) => {
+              const isFirst = index === 0;
 
               return (
-                <div key={session.id} className={`relative flex gap-6 p-4 rounded-lg transition-colors ${isActive ? "bg-[var(--accent)]/50" : "hover:bg-[var(--accent)]/20"}`}>
+                <div key={event.id} className={`relative flex gap-6 p-4 rounded-lg transition-colors ${isFirst ? "bg-[var(--accent)]/50" : "hover:bg-[var(--accent)]/20"}`}>
                   <div className="relative z-10 flex flex-col items-center">
-                    <div className={`w-4 h-4 rounded-full border-2 ${isActive ? "bg-rose-500 border-rose-500" : "bg-[var(--background)] border-[var(--muted-foreground)]"}`}></div>
+                    <div className={`w-4 h-4 rounded-full border-2 ${isFirst ? "bg-rose-500 border-rose-500" : "bg-[var(--background)] border-[var(--muted-foreground)]"}`}></div>
                   </div>
                   <div className="flex-1 flex items-center justify-between">
                     <div>
-                      <div className="font-medium text-sm text-[var(--muted-foreground)]">{session.startTime}</div>
-                      <div className="font-semibold">{session.title}</div>
+                      <div className="font-medium text-sm text-[var(--muted-foreground)]">{event.start} - {event.end}</div>
+                      <div className="font-semibold">{event.title}</div>
                     </div>
-                    <Badge className={`${getDurationColor(session.duration)} shadow-sm`}>
-                      {session.duration}
+                    <Badge className="shadow-sm">
+                      {event.type}
                     </Badge>
                   </div>
-                  {isActive && (
+                  {isFirst && (
                     <div className="absolute right-4 top-1/2 -translate-y-1/2">
                       <span className="flex h-2 w-2 rounded-full bg-rose-500"></span>
                     </div>

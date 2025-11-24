@@ -66,9 +66,10 @@ export interface CalendarEvent {
   start: string;
   end: string;
   flexibility: Flexibility;
-  course?: string;
+  course?: string; // e.g. "CPSC 110"
   // Frontend specific fields
-  source: "class" | "commitment" | "study" | "custom";
+  source: "class" | "study" | "commitment" | "custom";
+  excludedDates?: string[]; // ISO dates (YYYY-MM-DD) to skip for recurring events
   tagId?: string;
   notes?: string;
   recurrence?: Recurrence;

@@ -312,7 +312,7 @@ export default function Home() {
           },
           {
             role: "assistant",
-            content: result.summary || "I've updated your schedule based on your input.",
+            content: result.assistantMessage || "I've updated your schedule based on your input.",
             timestamp: new Date().toISOString()
           }
         ];

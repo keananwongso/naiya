@@ -4,9 +4,9 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
 
-        // Forward to backend server
-        const backendUrl = process.env.BACKEND_URL || "http://localhost:3001";
-        const response = await fetch(`${backendUrl}/api/naiya/process`, {
+        // Forward to Supabase Edge Function
+        const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost:3001";
+        const response = await fetch(`${backendUrl}/functions/v1/naiya-process`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

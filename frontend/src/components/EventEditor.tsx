@@ -12,6 +12,7 @@ type Base44Event = {
   all_day?: boolean;
   color?: string;
   tagId?: string;
+  recurrence?: Recurrence;
 };
 
 type Props = {

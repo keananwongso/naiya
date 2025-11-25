@@ -134,12 +134,12 @@ export function ScheduleGrid({ events, title }: Props) {
               {/* Current time indicator */}
               {isCurrentDay && (
                 <div
-                  className="absolute left-0 right-0 flex items-center pointer-events-none"
+                  className="absolute left-4 right-4 flex items-center pointer-events-none"
                   style={{ top: `${getTimeIndicatorPosition()}%` }}
                 >
                   <div className="h-0.5 w-full bg-red-500 relative">
-                    <div className="absolute -left-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500" />
-                    <div className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500" />
+                    <div className="absolute left-0 -top-1 h-2.5 w-2.5 rounded-full bg-red-500" />
+                    <div className="absolute right-0 -top-1 h-2.5 w-2.5 rounded-full bg-red-500" />
                   </div>
                 </div>
               )}
@@ -204,12 +204,12 @@ export function ScheduleGrid({ events, title }: Props) {
               {/* Current time indicator */}
               {isCurrentDay && (
                 <div
-                  className="absolute left-0 right-0 flex items-center pointer-events-none"
+                  className="absolute left-4 right-4 flex items-center pointer-events-none"
                   style={{ top: `${getTimeIndicatorPosition()}%` }}
                 >
                   <div className="h-0.5 w-full bg-red-500 relative">
-                    <div className="absolute -left-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500" />
-                    <div className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500" />
+                    <div className="absolute left-0 -top-1 h-2.5 w-2.5 rounded-full bg-red-500" />
+                    <div className="absolute right-0 -top-1 h-2.5 w-2.5 rounded-full bg-red-500" />
                   </div>
                 </div>
               )}

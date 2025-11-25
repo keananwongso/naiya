@@ -77,6 +77,7 @@ export default function Home() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [deadlines, setDeadlines] = useState<Deadline[]>([]);
+  const [displayName, setDisplayName] = useState<string>("there");
   const router = useRouter();
 
   // Braindump state
@@ -100,9 +101,15 @@ export default function Home() {
           loadCalendar(),
           loadDeadlines()
         ]);
+
+        const userMeta = session.user?.user_metadata || {};
+        const emailName = session.user?.email ? session.user.email.split("@")[0] : "";
+        const name = userMeta.full_name || userMeta.name || emailName || "there";
+
         if (isMounted) {
           setEvents(loadedEvents);
           setDeadlines(loadedDeadlines);
+          setDisplayName(name);
         }
       } catch (error) {
         console.error("Failed to load data:", error);
@@ -269,7 +276,7 @@ export default function Home() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Good Morning, Ventura</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Hello, {displayName}</h1>
             <p className="text-[var(--muted-foreground)] mt-1">Ready to seize the day?</p>
           </div>
           <div className="text-right hidden md:block">

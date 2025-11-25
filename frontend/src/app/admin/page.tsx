@@ -207,11 +207,10 @@ export default function AdminPage() {
 
         {/* Status Message */}
         {message && (
-          <div className={`p-4 rounded-lg border ${
-            message.includes("❌")
-              ? "bg-red-50 border-red-200 text-red-800"
-              : "bg-green-50 border-green-200 text-green-800"
-          }`}>
+          <div className={`p-4 rounded-lg border ${message.includes("❌")
+            ? "bg-red-50 border-red-200 text-red-800"
+            : "bg-green-50 border-green-200 text-green-800"
+            }`}>
             {message}
           </div>
         )}

@@ -2,14 +2,17 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Clock, Play, Square, Calendar as CalendarIcon, Mic, Send, X, CheckCircle2, Plus } from "lucide-react";
+import { PencilSimple, CaretRight } from "@phosphor-icons/react";
 import { format } from "date-fns";
 import { CalendarEvent } from "shared/types";
 import { loadCalendar, saveCalendar } from "@/lib/calendar-db";
 import { loadDeadlines, Deadline } from "@/lib/deadline-db";
 import { processNaiya } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
+import { createChatSession, saveChatSession, ChatMessage } from "@/lib/chat-db";
 
 // --- Helper Functions ---
 // (None currently needed)
@@ -264,6 +267,13 @@ export default function Home() {
     }
 
     return false;
+  }).sort((a, b) => {
+    // Sort by start time
+    const [aHour, aMinute] = a.start.split(':').map(Number);
+    const [bHour, bMinute] = b.start.split(':').map(Number);
+    const aMinutes = aHour * 60 + aMinute;
+    const bMinutes = bHour * 60 + bMinute;
+    return aMinutes - bMinutes;
   });
 
   // Get upcoming deadlines
@@ -287,18 +297,37 @@ export default function Home() {
       if (result.events) {
         setEvents(result.events);
         // Save to Supabase
-        saveCalendar(result.events).catch(err =>
-          console.error("Failed to save calendar after braindump:", err)
-        );
+        await saveCalendar(result.events);
       }
       if (result.deadlines) setDeadlines(result.deadlines);
+
+      // Create a new chat session with this braindump
+      const newSession = await createChatSession();
+      if (newSession) {
+        const messages: ChatMessage[] = [
+          {
+            role: "user",
+            content: braindumpText,
+            timestamp: new Date().toISOString()
+          },
+          {
+            role: "assistant",
+            content: result.summary || "I've updated your schedule based on your input.",
+            timestamp: new Date().toISOString()
+          }
+        ];
+        await saveChatSession(newSession.id, messages);
+      }
 
       // Clear and close
       setBraindumpText("");
       setIsBraindumpOpen(false);
 
+      // Set flag to trigger reload on schedule page
+      localStorage.setItem('calendar-updated', 'true');
+
       // Redirect to schedule page
-      router.push("/schedule");
+      router.push('/schedule');
     } catch (error) {
       console.error("Failed to process braindump:", error);
     } finally {
@@ -390,7 +419,7 @@ export default function Home() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Hello, {displayName}</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Hello, {displayName.split(' ')[0]}</h1>
             <p className="text-[var(--muted-foreground)] mt-1">Ready to seize the day?</p>
           </div>
           <div className="text-right hidden md:block">
@@ -553,13 +582,63 @@ export default function Home() {
                 exit={{ opacity: 0, scale: 0.9 }}
                 className="w-full"
               >
-                <Button
+                <button
                   onClick={() => setIsBraindumpOpen(true)}
-                  className="w-full rounded-xl h-12 px-6 shadow-md text-base !bg-[#D8F3DC] text-[var(--foreground)] transition-all hover:!bg-[#a9c3a2]"
+                  className="relative w-full h-20 px-8 rounded-[22px] overflow-hidden shadow-[0_10px_40px_rgba(151,181,156,0.25)] hover:shadow-[0_14px_50px_rgba(151,181,156,0.35)] transition-all duration-500 hover:scale-[1.01] group"
                 >
-                  <Plus className="mr-2 h-5 w-5" />
-                  Braindump
-                </Button>
+                  {/* Messy organic gradient background */}
+                  <div className="absolute inset-0 bg-[#B8D4AE]"></div>
+                  <div className="absolute top-[-40%] right-[-20%] w-96 h-96 bg-[#D8F3DC] rounded-full blur-[100px] opacity-60"></div>
+                  <div className="absolute bottom-[-50%] left-[-25%] w-80 h-80 bg-[#97B59C] rounded-full blur-[90px] opacity-50"></div>
+                  <div className="absolute top-[20%] left-[30%] w-56 h-56 bg-[#A9C3A2] rounded-full blur-[70px] opacity-40"></div>
+                  <div className="absolute bottom-[10%] right-[15%] w-64 h-64 bg-[#D8F3DC] rounded-full blur-[85px] opacity-45"></div>
+                  <div className="absolute top-[60%] left-[10%] w-48 h-48 bg-[#8FAA8B] rounded-full blur-[65px] opacity-35"></div>
+                  <div className="absolute top-[-10%] left-[50%] w-72 h-72 bg-[#C5E1C0] rounded-full blur-[95px] opacity-38"></div>
+                  {/* Left-side darkening vignette */}
+                  <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-black/10 to-transparent"></div>
+
+                  {/* Content */}
+                  <div className="relative flex items-center h-full">
+                    <div className="absolute left-0">
+                      <div className="relative">
+                        {/* Glow layer */}
+                        <div className="absolute inset-0">
+                          <PencilSimple
+                            weight="duotone"
+                            size={32}
+                            className="text-[#D4BE8A] blur-[2px] opacity-50"
+                          />
+                        </div>
+                        {/* Main icon */}
+                        <PencilSimple
+                          weight="duotone"
+                          size={32}
+                          className="relative text-[#C9B17A]"
+                          style={{
+                            filter: 'drop-shadow(0 3px 8px rgba(140,115,60,0.5)) drop-shadow(0 1px 2px rgba(212,190,138,0.4)) brightness(1.05) contrast(1.1)'
+                          }}
+                        />
+                        {/* Metallic right-edge highlight */}
+                        <div className="absolute inset-0 pointer-events-none">
+                          <PencilSimple
+                            weight="duotone"
+                            size={32}
+                            className="text-[#F7E7AB] blur-[1.5px] opacity-70"
+                            style={{
+                              maskImage: 'linear-gradient(to left, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 70%)',
+                              WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 70%)',
+                              filter: 'drop-shadow(2px 0 5px rgba(247,231,171,0.75))'
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex-1 text-center">
+                      <div className="text-lg font-semibold text-[#1A2E27]">Braindump</div>
+                      <div className="text-xs text-[#42584F] font-medium">Turn thoughts into a schedule</div>
+                    </div>
+                  </div>
+                </button>
               </motion.div>
             ) : (
               <motion.div
@@ -632,9 +711,9 @@ export default function Home() {
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Today's Schedule</h2>
-            <button className="text-sm font-medium text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:underline transition-colors">
+            <Link href="/schedule" className="text-sm font-medium text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:underline transition-colors">
               View Calendar
-            </button>
+            </Link>
           </div>
 
           <div className="relative space-y-0">
@@ -645,9 +724,9 @@ export default function Home() {
               const isFirst = index === 0;
 
               return (
-                <div key={event.id} className={`relative flex gap-6 p-4 rounded-lg transition-colors ${isFirst ? "bg-[var(--accent)]/50" : "hover:bg-[var(--accent)]/20"}`}>
-                  <div className="relative z-10 flex flex-col items-center">
-                    <div className={`w-4 h-4 rounded-full border-2 ${isFirst ? "bg-rose-500 border-rose-500" : "bg-[var(--background)] border-[var(--muted-foreground)]"}`}></div>
+                <div key={event.id} className={`relative flex gap-6 p-4 rounded-lg transition-colors ${isFirst ? "border border-gray-200" : "hover:bg-[var(--background)]/60 hover:brightness-95"}`}>
+                  <div className="relative z-10 flex flex-col items-center min-w-[16px]">
+                    <div className={`w-4 h-4 rounded-full border-2 ${isFirst ? "bg-[#a9c3a2] border-[#a9c3a2]" : "bg-white border-[#a9c3a2]"}`}></div>
                   </div>
                   <div className="flex-1 flex items-center justify-between">
                     <div>
@@ -658,11 +737,6 @@ export default function Home() {
                       {event.type}
                     </Badge>
                   </div>
-                  {isFirst && (
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                      <span className="flex h-2 w-2 rounded-full bg-rose-500"></span>
-                    </div>
-                  )}
                 </div>
               );
             })}

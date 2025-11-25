@@ -53,10 +53,11 @@ export default function SchedulePage() {
 
   const router = useRouter();
 
-  // Load calendar and deadlines on mount
+  // Load calendar and deadlines on mount and when page becomes visible
   useEffect(() => {
     let isMounted = true;
-    (async () => {
+
+    const loadData = async () => {
       try {
         // Check for user session
         const { data: { session } } = await supabase.auth.getSession();
@@ -76,9 +77,47 @@ export default function SchedulePage() {
       } catch (error) {
         console.error("Failed to load data from Supabase", error);
       }
-    })();
+    };
+
+    // Load data initially
+    loadData();
+
+    // Reload data when page becomes visible (e.g., after navigation)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadData();
+      }
+    };
+
+    // Reload data when window gets focus (e.g., navigating back from another page)
+    const handleFocus = () => {
+      loadData();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    // Listen for storage events (when braindump completes from home page)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'calendar-updated' && e.newValue === 'true') {
+        loadData();
+        localStorage.removeItem('calendar-updated');
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    // Also check on mount if flag is set (same-window navigation)
+    if (localStorage.getItem('calendar-updated') === 'true') {
+      loadData();
+      localStorage.removeItem('calendar-updated');
+    }
+
     return () => {
       isMounted = false;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, [router]);
 

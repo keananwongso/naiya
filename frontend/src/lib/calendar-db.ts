@@ -1,28 +1,34 @@
 import { supabase } from "./supabase";
 import { CalendarEvent } from "shared/types";
 
-// Hardcoded user ID for demo purposes (must be a valid UUID)
-const DEMO_USER_ID = "00000000-0000-0000-0000-000000000000";
-
 export async function loadCalendar(): Promise<CalendarEvent[]> {
     try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+            console.error("No user logged in - cannot load calendar");
+            return [];
+        }
+
+        // Load from Supabase
         const { data, error } = await supabase
             .from("calendars")
             .select("events")
-            .eq("user_id", DEMO_USER_ID)
+            .eq("user_id", user.id)
             .single();
 
         if (error) {
+            // If row doesn't exist, return empty array
             if (error.code === "PGRST116") {
-                // Row doesn't exist (PGRST116 is "The result contains 0 rows")
-                console.log("Creating new calendar row for demo user...");
-                await createDemoUserCalendar();
+                console.log("No calendar found for user, returning empty array");
                 return [];
             }
-            console.error("Error loading calendar:", error.message || error);
-            throw error;
+            console.error("Supabase load error:", error);
+            return [];
         }
 
+        console.log("Calendar loaded from Supabase successfully");
         return (data?.events as CalendarEvent[]) || [];
     } catch (error) {
         console.error("Failed to load calendar:", error);
@@ -32,34 +38,28 @@ export async function loadCalendar(): Promise<CalendarEvent[]> {
 
 export async function saveCalendar(events: CalendarEvent[]): Promise<void> {
     try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            console.error("No user logged in - cannot save calendar");
+            return;
+        }
+
         const { error } = await supabase.from("calendars").upsert({
-            user_id: DEMO_USER_ID,
+            user_id: user.id,
             events: events,
             updated_at: new Date().toISOString(),
+        }, {
+            onConflict: 'user_id'  // Specify which column to match on for upsert
         });
 
         if (error) {
-            console.error("Error saving calendar (details):", JSON.stringify(error, null, 2));
-            console.error("Error message:", error.message);
-            console.error("Error code:", error.code);
-            console.error("Error details:", error.details);
-            console.error("Supabase URL configured:", !!process.env.NEXT_PUBLIC_SUPABASE_URL);
-            throw error;
+            console.error("Supabase save error:", error);
+            return;
         }
-        console.log("Calendar saved successfully");
+
+        console.log("Calendar saved to Supabase successfully");
     } catch (error) {
-        console.error("Failed to save calendar:", error);
-    }
-}
-
-async function createDemoUserCalendar() {
-    const { error } = await supabase.from("calendars").insert({
-        user_id: DEMO_USER_ID,
-        events: [],
-        updated_at: new Date().toISOString(),
-    });
-
-    if (error) {
-        console.error("Error creating demo calendar:", error);
+        console.error("Failed to save calendar to Supabase:", error);
     }
 }

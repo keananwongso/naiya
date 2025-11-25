@@ -28,7 +28,7 @@ import { saveCalendar } from "@/lib/calendar-db";
 const weekdayKeys: DayKey[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
 const filterToWeekdays = (events: CalendarEvent[]) =>
-  events.filter((event) => weekdayKeys.includes(event.day));
+  events.filter((event) => event.day && weekdayKeys.includes(event.day));
 
 type Base44Event = {
   id: string;
@@ -61,14 +61,25 @@ const toBase44EventsForRange = (
     const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
       day.getDay()
     ] as DayKey;
+    const dateStr = format(day, 'yyyy-MM-dd');
 
     const matching = events.filter((event) => {
-      if (event.day !== weekday) return false;
-      // Check if this specific date is excluded
-      const dateStr = format(day, 'yyyy-MM-dd');
-      if (Array.isArray(event.excludedDates) && event.excludedDates.includes(dateStr)) return false;
-      return true;
+      // Handle recurring events (by day)
+      if (event.day) {
+        if (event.day !== weekday) return false;
+        // Check if this specific date is excluded
+        if (Array.isArray(event.excludedDates) && event.excludedDates.includes(dateStr)) return false;
+        return true;
+      }
+
+      // Handle one-time events (by date)
+      if (event.date) {
+        return event.date === dateStr;
+      }
+
+      return false;
     });
+
     for (const event of matching) {
       const [sh, sm] = event.start.split(":").map(Number);
       const [eh, em] = event.end.split(":").map(Number);
@@ -147,12 +158,24 @@ export function CalendarShell({
             ? parseISO(updated.end_date)
             : addHours(newStart, 1);
 
-          return {
-            ...event,
-            day: format(newStart, "EEE") as DayKey,
-            start: format(newStart, "HH:mm"),
-            end: format(newEnd, "HH:mm"),
-          };
+          // Preserve whether this is a recurring or one-time event
+          if (event.day) {
+            // Recurring event - update day
+            return {
+              ...event,
+              day: format(newStart, "EEE") as DayKey,
+              start: format(newStart, "HH:mm"),
+              end: format(newEnd, "HH:mm"),
+            };
+          } else if (event.date) {
+            // One-time event - update date
+            return {
+              ...event,
+              date: format(newStart, 'yyyy-MM-dd'),
+              start: format(newStart, "HH:mm"),
+              end: format(newEnd, "HH:mm"),
+            };
+          }
         }
         return event;
       });
@@ -220,6 +243,14 @@ export function CalendarShell({
     });
   };
 
+  // Optimistic update predictor - simplified to only handle very obvious deletions
+  const predictOptimisticUpdate = (message: string, currentEvents: CalendarEvent[]): CalendarEvent[] | null => {
+    // DISABLED: Optimistic updates are too error-prone and cause UI jank
+    // The LLM is fast enough that we don't need them
+    // Just show a loading state instead
+    return null;
+  };
+
   const handleCalendarUpdate = async (message: string) => {
     const setProcessing = setParentIsProcessing || setLocalIsProcessing;
     const setMessage = setParentAssistantMessage || setLocalAssistantMessage;
@@ -238,6 +269,7 @@ export function CalendarShell({
       setMessage(result.assistantMessage);
 
       if (result.events) {
+        // Use LLM result as source of truth
         setEvents(result.events);
         saveCalendar(result.events).catch((err) =>
           console.error("Failed to save calendar after AI update", err)
@@ -375,12 +407,23 @@ export function CalendarShell({
       const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
         day.getDay()
       ] as DayKey;
+      const dateStr = format(day, 'yyyy-MM-dd');
 
       const matching = events.filter((event) => {
-        if (event.day !== weekday) return false;
-        const dateStr = format(day, 'yyyy-MM-dd');
-        if (Array.isArray(event.excludedDates) && event.excludedDates.includes(dateStr)) return false;
-        return true;
+        // Handle recurring events (by day)
+        if (event.day) {
+          if (event.day !== weekday) return false;
+          // Check if this specific date is excluded
+          if (Array.isArray(event.excludedDates) && event.excludedDates.includes(dateStr)) return false;
+          return true;
+        }
+
+        // Handle one-time events (by date)
+        if (event.date) {
+          return event.date === dateStr;
+        }
+
+        return false;
       });
       for (const event of matching) {
         const [sh, sm] = event.start.split(":").map(Number);

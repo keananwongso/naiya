@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Clock, Play, Square, Calendar as CalendarIcon, Mic, Send, X, CheckCircle2, Plus } from "lucide-react";
@@ -9,6 +9,7 @@ import { CalendarEvent } from "shared/types";
 import { loadCalendar, saveCalendar } from "@/lib/calendar-db";
 import { loadDeadlines, Deadline } from "@/lib/deadline-db";
 import { processNaiya } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 // --- Helper Functions ---
 // (None currently needed)
@@ -88,6 +89,13 @@ export default function Home() {
     let isMounted = true;
     (async () => {
       try {
+        // Check for user session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          router.push("/login");
+          return;
+        }
+
         const [loadedEvents, loadedDeadlines] = await Promise.all([
           loadCalendar(),
           loadDeadlines()
@@ -103,7 +111,7 @@ export default function Home() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [router]);
 
   // Update current time every second
   useEffect(() => {
@@ -118,7 +126,23 @@ export default function Home() {
   // Get today's events
   const todayEvents = events.filter(event => {
     const today = format(currentTime, 'EEE');
-    return event.day === today;
+    const todayDate = format(currentTime, 'yyyy-MM-dd');
+
+    // Include recurring events that match today's day
+    if (event.day && event.day === today) {
+      // Check if today is excluded
+      if (Array.isArray(event.excludedDates) && event.excludedDates.includes(todayDate)) {
+        return false;
+      }
+      return true;
+    }
+
+    // Include one-time events that match today's date
+    if (event.date && event.date === todayDate) {
+      return true;
+    }
+
+    return false;
   });
 
   // Get upcoming deadlines
@@ -158,6 +182,83 @@ export default function Home() {
       console.error("Failed to process braindump:", error);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  // Voice Recording Logic
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" });
+        await transcribeAudio(audioBlob);
+
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error("Error accessing microphone:", error);
+      alert("Could not access microphone. Please ensure you have granted permission.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      setIsTranscribing(true);
+    }
+  };
+
+  const transcribeAudio = async (audioBlob: Blob) => {
+    try {
+      const formData = new FormData();
+      formData.append("audio", audioBlob, "recording.webm");
+
+      const response = await fetch("http://localhost:3001/brain-dump/audio", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Transcription failed");
+      }
+
+      const data = await response.json();
+      if (data.transcript) {
+        setBraindumpText(prev => (prev ? `${prev} ${data.transcript}` : data.transcript));
+      }
+    } catch (error) {
+      console.error("Transcription error:", error);
+      alert("Failed to transcribe audio.");
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
     }
   };
 
@@ -281,8 +382,9 @@ export default function Home() {
                   <textarea
                     value={braindumpText}
                     onChange={(e) => setBraindumpText(e.target.value)}
-                    placeholder="I have a meeting tomorrow at 10am..."
-                    className="w-full min-h-[80px] bg-transparent resize-none outline-none text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]/50"
+                    placeholder={isRecording ? "Listening..." : isTranscribing ? "Transcribing..." : "I have a meeting tomorrow at 10am..."}
+                    className={`w-full min-h-[80px] bg-transparent resize-none outline-none text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]/50 transition-colors ${isRecording ? "text-red-500 placeholder:text-red-400" : ""
+                      }`}
                     autoFocus
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
@@ -293,9 +395,15 @@ export default function Home() {
                   />
 
                   <div className="flex justify-between items-center mt-2 pt-2 border-t border-[var(--border)]/50">
-                    <Button variant="ghost" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--accent)]/50">
-                      <Mic className="h-4 w-4 mr-2" />
-                      <span className="text-xs">Record</span>
+                    <Button
+                      variant="ghost"
+                      onClick={toggleRecording}
+                      className={`text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--accent)]/50 transition-all ${isRecording ? "text-red-500 bg-red-50/10 hover:bg-red-50/20 animate-pulse" : ""
+                        }`}
+                      disabled={isProcessing || isTranscribing}
+                    >
+                      <Mic className={`h-4 w-4 mr-2 ${isRecording ? "fill-current" : ""}`} />
+                      <span className="text-xs">{isRecording ? "Stop Recording" : isTranscribing ? "Transcribing..." : "Record"}</span>
                     </Button>
 
                     <Button

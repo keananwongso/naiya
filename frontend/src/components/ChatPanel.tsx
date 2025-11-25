@@ -57,6 +57,90 @@ export function ChatPanel({
     }
   };
 
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" });
+        await transcribeAudio(audioBlob);
+
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error("Error accessing microphone:", error);
+      alert("Could not access microphone. Please ensure you have granted permission.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      setIsTranscribing(true);
+    }
+  };
+
+  const transcribeAudio = async (audioBlob: Blob) => {
+    try {
+      const formData = new FormData();
+      formData.append("audio", audioBlob, "recording.webm");
+
+      const response = await fetch("http://localhost:3001/brain-dump/audio", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Transcription failed");
+      }
+
+      const data = await response.json();
+      if (data.transcript) {
+        setInput(prev => (prev ? `${prev} ${data.transcript}` : data.transcript));
+      }
+    } catch (error) {
+      console.error("Transcription error:", error);
+      alert("Failed to transcribe audio.");
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+    }
+  }, [input]);
+
   return (
     <section className="flex flex-col h-full bg-[var(--surface)] border-l border-[var(--border)]">
       <div className="p-6 border-b border-[var(--border)]">
@@ -80,8 +164,8 @@ export function ChatPanel({
           >
             <div
               className={`max-w-[90%] rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm ${message.role === "naiya"
-                  ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--foreground)]"
-                  : "border-[var(--border)] bg-[var(--background)] text-[var(--foreground)]"
+                ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--foreground)]"
+                : "border-[var(--border)] bg-[var(--background)] text-[var(--foreground)]"
                 }`}
             >
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em]">
@@ -136,17 +220,22 @@ export function ChatPanel({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask Naiya to change your schedule..."
-            className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] p-3 pr-20 text-sm shadow-sm focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none"
+            placeholder={isRecording ? "Listening..." : isTranscribing ? "Transcribing..." : "Ask Naiya to change your schedule..."}
+            className={`w-full rounded-xl border border-[var(--border)] bg-[var(--background)] p-3 pr-20 text-sm shadow-sm focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none transition-colors max-h-[200px] overflow-y-auto ${isRecording ? "border-red-500 ring-1 ring-red-500 bg-red-50/10" : ""
+              }`}
             rows={1}
-            disabled={isProcessing}
+            disabled={isProcessing || isTranscribing}
           />
           <div className="absolute right-2 bottom-2 flex gap-1">
             <button
-              className="rounded-lg p-1.5 text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors"
-              disabled={isProcessing}
+              onClick={toggleRecording}
+              className={`rounded-lg p-1.5 transition-all ${isRecording
+                ? "text-red-500 bg-red-100 hover:bg-red-200 animate-pulse"
+                : "text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)]"
+                }`}
+              disabled={isProcessing || isTranscribing}
             >
-              <Mic className="h-4 w-4" />
+              <Mic className={`h-4 w-4 ${isRecording ? "fill-current" : ""}`} />
             </button>
             <button
               onClick={handleSubmit}

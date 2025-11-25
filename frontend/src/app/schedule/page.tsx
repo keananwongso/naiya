@@ -11,6 +11,8 @@ import { CalendarEvent, Tag } from "shared/types";
 import { useEffect } from "react";
 import { loadCalendar } from "@/lib/calendar-db";
 import { loadDeadlines, toggleDeadlineComplete, deleteDeadline, Deadline } from "@/lib/deadline-db";
+import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 // Force rebuild
 export default function SchedulePage() {
@@ -49,11 +51,20 @@ export default function SchedulePage() {
   const handleDeleteTag = (id: string) =>
     setTags((prev) => prev.filter((t) => t.id !== id));
 
+  const router = useRouter();
+
   // Load calendar and deadlines on mount
   useEffect(() => {
     let isMounted = true;
     (async () => {
       try {
+        // Check for user session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          router.push("/login");
+          return;
+        }
+
         const [loadedEvents, loadedDeadlines] = await Promise.all([
           loadCalendar(),
           loadDeadlines()
@@ -69,7 +80,7 @@ export default function SchedulePage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [router]);
 
   // Deadline handlers
   const handleToggleDeadline = async (id: string, completed: boolean) => {

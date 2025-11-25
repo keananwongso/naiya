@@ -77,9 +77,13 @@ export async function processNaiya(
     calendar: CalendarEvent[],
     message: string
 ): Promise<{ events: CalendarEvent[]; deadlines: any[]; assistantMessage: string }> {
+    // Get current date in client's timezone (YYYY-MM-DD format)
+    const now = new Date();
+    const currentDate = now.toLocaleDateString('en-CA'); // en-CA gives YYYY-MM-DD format
+
     return callAPI<{ events: CalendarEvent[]; deadlines: any[]; assistantMessage: string }>(
         "/naiya/process",
-        { calendar, message }
+        { calendar, message, currentDate }
     );
 }
 

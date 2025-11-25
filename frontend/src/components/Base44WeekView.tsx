@@ -368,7 +368,7 @@ export function Base44WeekView({
                 // Current time in minutes / 60 = hours from midnight
                 // Multiply by 48 to get pixels from top of grid (which starts at midnight/12 AM)
                 // The sticky header height needs to be accounted for
-                top: `calc(${(currentTimeMinutes / 60) * 48}px + 136px)`,
+                top: `calc(${(currentTimeMinutes / 60) * 48}px + 93px)`,
               }}
             >
               <div className="relative h-0.5 bg-red-500">

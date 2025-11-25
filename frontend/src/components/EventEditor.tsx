@@ -168,7 +168,11 @@ export function EventEditor({
             </label>
             <select
               value={recurrence.type}
-              onChange={(e) => setRecurrence({ ...recurrence, type: e.target.value as Recurrence["type"] })}
+              onChange={(e) => {
+                const newRecurrence = { ...recurrence, type: e.target.value as Recurrence["type"] };
+                setRecurrence(newRecurrence);
+                setEditedEvent({ ...editedEvent, recurrence: newRecurrence });
+              }}
               className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
             >
               <option value="none">Does not repeat</option>
@@ -187,7 +191,9 @@ export function EventEditor({
                       const newDays = currentDays.includes(day)
                         ? currentDays.filter((d) => d !== day)
                         : [...currentDays, day];
-                      setRecurrence({ ...recurrence, days: newDays });
+                      const newRecurrence = { ...recurrence, days: newDays };
+                      setRecurrence(newRecurrence);
+                      setEditedEvent({ ...editedEvent, recurrence: newRecurrence });
                     }}
                     className={`w-8 h-8 rounded-full text-xs font-medium transition-colors ${recurrence.days?.includes(day)
                       ? "bg-[var(--foreground)] text-[var(--background)]"
@@ -226,7 +232,7 @@ export function EventEditor({
                 setPendingAction("save");
                 setShowRecurringModal(true);
               } else {
-                onSave({ ...editedEvent, recurrence }, recurrence);
+                onSave(editedEvent, recurrence);
                 onClose();
               }
             }}
@@ -246,7 +252,7 @@ export function EventEditor({
           onConfirm={(mode) => {
             setPendingMode(mode);
             if (pendingAction === "save") {
-              onSave({ ...editedEvent, recurrence }, recurrence, mode);
+              onSave(editedEvent, recurrence, mode);
             } else if (pendingAction === "delete") {
               onDelete(editedEvent.originalId || editedEvent.id, mode);
             }

@@ -207,7 +207,8 @@ export function ChatPanelWithSessions({
       const formData = new FormData();
       formData.append("audio", audioBlob, "recording.webm");
 
-      const response = await fetch("http://localhost:3001/brain-dump/audio", {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
+      const response = await fetch(`${backendUrl}/brain-dump/audio`, {
         method: "POST",
         body: formData,
       });
@@ -307,9 +308,8 @@ export function ChatPanelWithSessions({
                         loadSession(session.id);
                       }
                     }}
-                    className={`w-full text-left p-3 rounded-lg hover:bg-[var(--accent)] transition-colors group flex items-center justify-between cursor-pointer ${
-                      session.id === currentSessionId ? "bg-[var(--accent)]" : ""
-                    }`}
+                    className={`w-full text-left p-3 rounded-lg hover:bg-[var(--accent)] transition-colors group flex items-center justify-between cursor-pointer ${session.id === currentSessionId ? "bg-[var(--accent)]" : ""
+                      }`}
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{session.title}</p>
@@ -339,11 +339,10 @@ export function ChatPanelWithSessions({
             className={`flex ${message.role === "naiya" ? "justify-start" : "justify-end"}`}
           >
             <div
-              className={`max-w-[90%] rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm ${
-                message.role === "naiya"
+              className={`max-w-[90%] rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm ${message.role === "naiya"
                   ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--foreground)]"
                   : "border-[var(--border)] bg-[var(--background)] text-[var(--foreground)]"
-              }`}
+                }`}
             >
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em]">
                 <span>{message.role === "naiya" ? "Naiya" : "You"}</span>
@@ -378,20 +377,18 @@ export function ChatPanelWithSessions({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={isRecording ? "Listening..." : isTranscribing ? "Transcribing..." : "Ask Naiya to change your schedule..."}
-            className={`w-full rounded-xl border border-[var(--border)] bg-[var(--background)] p-3 pr-20 text-sm shadow-sm focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none transition-colors max-h-[200px] overflow-y-auto ${
-              isRecording ? "border-red-500 ring-1 ring-red-500 bg-red-50/10" : ""
-            }`}
+            className={`w-full rounded-xl border border-[var(--border)] bg-[var(--background)] p-3 pr-20 text-sm shadow-sm focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none transition-colors max-h-[200px] overflow-y-auto ${isRecording ? "border-red-500 ring-1 ring-red-500 bg-red-50/10" : ""
+              }`}
             rows={1}
             disabled={isProcessing || isTranscribing}
           />
           <div className="absolute right-2 bottom-2 flex gap-1">
             <button
               onClick={toggleRecording}
-              className={`rounded-lg p-1.5 transition-all ${
-                isRecording
+              className={`rounded-lg p-1.5 transition-all ${isRecording
                   ? "text-red-500 bg-red-100 hover:bg-red-200 animate-pulse"
                   : "text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)]"
-              }`}
+                }`}
               disabled={isProcessing || isTranscribing}
             >
               <Mic className={`h-4 w-4 ${isRecording ? "fill-current" : ""}`} />

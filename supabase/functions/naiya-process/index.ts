@@ -34,10 +34,12 @@ interface CalendarAction {
 }
 
 interface SummaryJSON {
-    events?: any[];
-    deadlines?: any[];
-    tasks?: any[];
-    actions?: CalendarAction[];
+    actions: CalendarAction[];
+    deadlines?: Array<{
+        title: string;
+        date: string;
+        importance?: string;
+    }>;
     assistantMessage: string;
 }
 
@@ -93,6 +95,43 @@ function classifyPreferredWindow(title: string) {
     return null;
 }
 
+function validateLLMResponse(data: any): SummaryJSON {
+    // Validate structure
+    if (!data || typeof data !== 'object') {
+        throw new Error('Invalid response: not an object');
+    }
+
+    // Validate actions
+    if (!Array.isArray(data.actions)) {
+        throw new Error('Invalid response: actions must be an array');
+    }
+
+    for (const action of data.actions) {
+        if (!action.type || !['add', 'delete', 'modify', 'exclude_date'].includes(action.type)) {
+            throw new Error(`Invalid action type: ${action.type}`);
+        }
+        if (!action.title || typeof action.title !== 'string') {
+            throw new Error('Invalid action: title is required');
+        }
+        // Validate day/date present
+        if (action.type !== 'delete' && !action.day && !action.date) {
+            throw new Error(`Invalid action: ${action.type} requires either day or date`);
+        }
+    }
+
+    // Validate deadlines if present
+    if (data.deadlines && !Array.isArray(data.deadlines)) {
+        throw new Error('Invalid response: deadlines must be an array');
+    }
+
+    // Validate assistantMessage
+    if (!data.assistantMessage || typeof data.assistantMessage !== 'string') {
+        throw new Error('Invalid response: assistantMessage is required');
+    }
+
+    return data as SummaryJSON;
+}
+
 function findForwardSlot(
     scheduled: CalendarEvent[],
     duration: number,
@@ -118,11 +157,12 @@ function findForwardSlot(
     return null;
 }
 
-function resolveConflicts(events: CalendarEvent[]): { events: CalendarEvent[]; notes: ConflictNote[] } {
+function resolveConflicts(events: CalendarEvent[]): { events: CalendarEvent[]; notes: ConflictNote[]; hasUnresolved: boolean } {
     const DAY_START = 6 * 60;
     const DAY_END = 22 * 60;
     const notes: ConflictNote[] = [];
     const result: CalendarEvent[] = [];
+    let hasUnresolved = false;
 
     const buckets = bucketEventsByDay(events);
 
@@ -134,76 +174,125 @@ function resolveConflicts(events: CalendarEvent[]): { events: CalendarEvent[]; n
             const startMin = toMinutes(ev.start);
             const endMin = toMinutes(ev.end);
             const duration = Math.max(endMin - startMin, 15);
-            const overlaps = placed.some(
+
+            // Find all overlapping events
+            const overlapping = placed.filter(
                 (p) => Math.max(startMin, toMinutes(p.start)) < Math.min(endMin, toMinutes(p.end))
             );
 
-            if (!overlaps) {
+            if (overlapping.length === 0) {
                 placed.push(ev);
                 continue;
             }
+
+            // Check if any overlapping event is fixed
+            const hasFixedConflict = overlapping.some(p => p.flexibility === "fixed");
 
             if (ev.flexibility === "fixed") {
+                // Fixed event conflicts with something
+                const conflictWith = overlapping[0];
                 notes.push({
                     title: ev.title,
                     dateLabel: dayKey,
                     originalTime: `${ev.start}-${ev.end}`,
                     status: "unresolved",
-                    reason: "Fixed time could not be moved",
+                    reason: `Conflicts with ${conflictWith.flexibility === "fixed" ? "fixed event" : ""} "${conflictWith.title}"`,
                 });
+                hasUnresolved = true;
+                // Still place it - user needs to see the conflict
                 placed.push(ev);
                 continue;
             }
 
-            const preferredWindow = classifyPreferredWindow(ev.title);
-            const searchStart = Math.max(startMin, preferredWindow?.start ?? DAY_START, DAY_START);
-            const prefEnd = preferredWindow?.end ?? DAY_END;
+            if (hasFixedConflict) {
+                // Flexible event conflicts with fixed event - try to move it
+                const preferredWindow = classifyPreferredWindow(ev.title);
+                const searchStart = preferredWindow?.start ?? DAY_START;
+                const prefEnd = preferredWindow?.end ?? DAY_END;
 
-            let slot = findForwardSlot(placed, duration, searchStart, prefEnd);
-            let outsidePreferred = false;
+                let slot = findForwardSlot(placed, duration, Math.max(searchStart, DAY_START), prefEnd);
+                let outsidePreferred = false;
 
-            if (!slot) {
-                slot = findForwardSlot(placed, duration, Math.max(startMin, DAY_START), DAY_END);
-                outsidePreferred = true;
-            }
+                if (!slot) {
+                    slot = findForwardSlot(placed, duration, DAY_START, DAY_END);
+                    outsidePreferred = true;
+                }
 
-            if (!slot) {
-                slot = findForwardSlot(placed, duration, DAY_START, DAY_END);
-                outsidePreferred = true;
-            }
-
-            if (slot) {
-                const moved: CalendarEvent = {
-                    ...ev,
-                    start: toTime(slot.start),
-                    end: toTime(slot.end),
-                };
-                placed.push(moved);
-                notes.push({
-                    title: ev.title,
-                    dateLabel: dayKey,
-                    originalTime: `${ev.start}-${ev.end}`,
-                    newTime: `${moved.start}-${moved.end}`,
-                    status: "resolved",
-                    reason: "Moved to next available slot",
-                    outsidePreferred,
-                });
+                if (slot) {
+                    const moved: CalendarEvent = {
+                        ...ev,
+                        start: toTime(slot.start),
+                        end: toTime(slot.end),
+                    };
+                    placed.push(moved);
+                    notes.push({
+                        title: ev.title,
+                        dateLabel: dayKey,
+                        originalTime: `${ev.start}-${ev.end}`,
+                        newTime: `${moved.start}-${moved.end}`,
+                        status: "resolved",
+                        reason: "Moved to avoid fixed event",
+                        outsidePreferred,
+                    });
+                } else {
+                    notes.push({
+                        title: ev.title,
+                        dateLabel: dayKey,
+                        originalTime: `${ev.start}-${ev.end}`,
+                        status: "unresolved",
+                        reason: "No available slot found",
+                    });
+                    hasUnresolved = true;
+                    placed.push(ev);
+                }
             } else {
-                notes.push({
-                    title: ev.title,
-                    dateLabel: dayKey,
-                    originalTime: `${ev.start}-${ev.end}`,
-                    status: "unresolved",
-                    reason: "No free slot same day within hours",
-                });
-                placed.push(ev);
+                // Both flexible - move the later one
+                const preferredWindow = classifyPreferredWindow(ev.title);
+                const searchStart = Math.max(endMin, preferredWindow?.start ?? DAY_START, DAY_START);
+                const prefEnd = preferredWindow?.end ?? DAY_END;
+
+                let slot = findForwardSlot(placed, duration, searchStart, prefEnd);
+                let outsidePreferred = false;
+
+                if (!slot) {
+                    slot = findForwardSlot(placed, duration, DAY_START, DAY_END);
+                    outsidePreferred = true;
+                }
+
+                if (slot) {
+                    const moved: CalendarEvent = {
+                        ...ev,
+                        start: toTime(slot.start),
+                        end: toTime(slot.end),
+                    };
+                    placed.push(moved);
+                    notes.push({
+                        title: ev.title,
+                        dateLabel: dayKey,
+                        originalTime: `${ev.start}-${ev.end}`,
+                        newTime: `${moved.start}-${moved.end}`,
+                        status: "resolved",
+                        reason: "Moved to next available slot",
+                        outsidePreferred,
+                    });
+                } else {
+                    notes.push({
+                        title: ev.title,
+                        dateLabel: dayKey,
+                        originalTime: `${ev.start}-${ev.end}`,
+                        status: "unresolved",
+                        reason: "No available slot found",
+                    });
+                    hasUnresolved = true;
+                    placed.push(ev);
+                }
             }
         }
 
         result.push(...placed);
     }
 
-    return { events: result, notes };
+    return { events: result, notes, hasUnresolved };
 }
 
 async function expandCalendar(actions: CalendarAction[], currentCalendar: CalendarEvent[]): Promise<CalendarEvent[]> {
@@ -256,9 +345,29 @@ async function expandCalendar(actions: CalendarAction[], currentCalendar: Calend
                 const t2 = action.title.toLowerCase();
                 const titleMatch = t1 === t2 || t1.includes(t2) || t2.includes(t1);
                 const dayOrDateMatch = (action.day && e.day === action.day) || (action.date && e.date === action.date);
+                // Relaxed time match: if action has no start, ignore time. If it has start, require match.
                 const timeMatch = action.start ? e.start === action.start : true;
                 return !(titleMatch && dayOrDateMatch && timeMatch);
             });
+
+        } else if (action.type === "modify") {
+            // Fallback for modify: find and update
+            const index = updatedCalendar.findIndex(e => {
+                const t1 = e.title.toLowerCase();
+                const t2 = action.title.toLowerCase();
+                const titleMatch = t1 === t2 || t1.includes(t2) || t2.includes(t1);
+                const dayOrDateMatch = (action.day && e.day === action.day) || (action.date && e.date === action.date);
+                return titleMatch && dayOrDateMatch;
+            });
+
+            if (index !== -1) {
+                updatedCalendar[index] = {
+                    ...updatedCalendar[index],
+                    ...(action.start ? { start: action.start } : {}),
+                    ...(action.end ? { end: action.end } : {}),
+                    ...(action.flexibility ? { flexibility: action.flexibility as any } : {}),
+                };
+            }
 
         } else if (action.type === "exclude_date") {
             const index = updatedCalendar.findIndex(e => {
@@ -282,58 +391,43 @@ async function expandCalendar(actions: CalendarAction[], currentCalendar: Calend
         }
     }
 
-    return updatedCalendar;
+    // Post-process to ensure commitments are fixed
+    return updatedCalendar.map(e => {
+        const lowerTitle = e.title.toLowerCase();
+        if (e.type === "COMMITMENT" || lowerTitle.includes("class") || lowerTitle.includes("lecture") || lowerTitle.includes("meeting")) {
+            return { ...e, flexibility: "fixed" };
+        }
+        return e;
+    });
 }
 
 // =======================
 // LLM EXTRACTION PROMPT
 // =======================
 
-const EXTRACTION_PROMPT = `You are Naiya, an AI that organizes a user's weekly schedule.
+const EXTRACTION_PROMPT = `You are Naiya, an AI assistant that helps organize weekly schedules.
 
-Your job is to process the user's natural-language message and output a single structured JSON object that contains:
+Your job is to process the user's natural-language message and determine what calendar changes they want.
 
-1. events: recurring or fixed events (classes, work, routine)
-2. deadlines: exams, assignments, due dates
-3. tasks: tasks that need hours allocated
-4. actions: additions/updates/deletions Naiya should perform
-5. assistantMessage: a short natural-language summary to show the user
+You MUST return ONLY a JSON object with this exact structure:
 
-You MUST return ONLY JSON. No chain-of-thought. No explanations.
-
-=========================
-JSON SCHEMA (STRICT)
-=========================
 {
-  "events": [
+  "actions": [
     {
+      "type": "add|delete|exclude_date",
       "title": "string",
-      "day": "Mon|Tue|Wed|Thu|Fri|Sat|Sun",  // For RECURRING events
-      "date": "YYYY-MM-DD",  // For ONE-TIME events
-      // NOTE: Use EITHER 'day' OR 'date', never both
+      "day": "Mon|Tue|Wed|Thu|Fri|Sat|Sun",  // For RECURRING events only
+      "date": "YYYY-MM-DD",  // For ONE-TIME events only
       "start": "HH:MM",
       "end": "HH:MM",
-      "type": "class|personal|routine|other",
-      "flexibility": "fixed|strong|medium|low|high"
+      "flexibility": "fixed|medium|high"
     }
   ],
   "deadlines": [
     {
       "title": "string",
       "date": "YYYY-MM-DD",
-      "type": "exam|project|assignment",
-      "flexibility": "fixed"
-    }
-  ],
-  "actions": [
-    {
-      "type": "add|delete|modify|exclude_date",
-      "title": "string",
-      "day": "Mon|Tue|Wed|Thu|Fri|Sat|Sun",  // For recurring
-      "date": "YYYY-MM-DD",  // For one-time
-      "start": "HH:MM",
-      "end": "HH:MM",
-      "flexibility": "fixed|strong|medium|low|high"
+      "importance": "low|medium|high"
     }
   ],
   "assistantMessage": "string"
@@ -342,24 +436,67 @@ JSON SCHEMA (STRICT)
 =========================
 CRITICAL RULES
 =========================
-• RECURRING vs ONE-TIME detection:
-    RECURRING (use "day"): "every Monday", "weekly", "Stats class MWF"
-    ONE-TIME (use "date"): "this Monday", "next Tuesday", "Nov 25", "tomorrow"
+1. RECURRING vs ONE-TIME:
+   • RECURRING (use "day"): "every Monday", "weekly", "Mondays and Wednesdays", "MWF"
+   • ONE-TIME (use "date"): "this Monday", "next Tuesday", "Nov 25", "tomorrow", "Friday" (when referring to upcoming specific date)
 
-• You MUST generate an "add" action for EVERY event you extract.
+2. ACTIONS:
+   • "add": Create new event. Infer reasonable times if not specified (e.g., lunch=12:00-13:00, dinner=18:00-19:30).
+   • "delete": Remove event. Match by title and day/date. Time is optional for matching.
+   • "modify": DO NOT USE. To modify an event, generate a "delete" action for the old event and an "add" action for the new version.
+   • "exclude_date": Cancel ONE instance of a recurring event. Requires both "day" and "date".
 
-• For RESCHEDULING: Generate BOTH "delete" (old time) AND "add" (new time) actions.
+3. FLEXIBILITY:
+   • "fixed": Cannot be moved (classes, appointments, commitments)
+   • "medium": Can be moved if needed (meals, personal tasks)
+   • "high": Very flexible (study time, exercise)
 
-• For CANCELLATIONS: Use "exclude_date" for single instance of recurring events, "delete" for one-time events.
+4. ASSISTANT MESSAGE:
+   • Keep it brief (1-2 sentences), friendly, natural.
+   • Don't mention technical details like "actions" or "flexibility".
 
-• Keep assistantMessage brief (1-2 sentences), friendly, and conversational.
-
-• IMPORTANT: When returning the calendar, return the COMPLETE updated calendar with ALL events (both existing and new/modified).
+5. IMPORTANT CONTEXT:
+   • You will receive the user's current schedule in the context.
+   • You will receive conversation history if this is part of an ongoing chat.
+   • Use the provided date context to resolve relative dates accurately.
 
 =========================
-RESPONSE FORMAT
+EXAMPLES
 =========================
-Return ONLY ONE JSON block. No markdown. No commentary.`;
+User: "I have dinner with Sarah on Friday"
+Context: Today is Tuesday Nov 25, upcoming Friday is Nov 28
+Response:
+{
+  "actions": [{"type": "add", "title": "Dinner with Sarah", "date": "2025-11-28", "start": "18:00", "end": "19:30", "flexibility": "medium"}],
+  "deadlines": [],
+  "assistantMessage": "I've added dinner with Sarah on Friday evening."
+}
+
+User: "Move my gym session to Wednesday"
+Context: User has "Gym Session" on Mon at 12:30-13:30
+Response:
+{
+  "actions": [
+    {"type": "delete", "title": "Gym Session", "day": "Mon"},
+    {"type": "add", "title": "Gym Session", "day": "Wed", "start": "12:30", "end": "13:30", "flexibility": "medium"}
+  ],
+  "deadlines": [],
+  "assistantMessage": "I've moved your gym session to Wednesday."
+}
+
+User: "Cancel my family dinner next Tuesday, I have a meeting"
+Context: User has recurring "Family Dinner" on Tue at 19:00, next Tuesday is Nov 27
+Response:
+{
+  "actions": [
+    {"type": "exclude_date", "title": "Family Dinner", "day": "Tue", "date": "2025-11-27"},
+    {"type": "add", "title": "Meeting", "date": "2025-11-27", "start": "19:00", "end": "20:00", "flexibility": "fixed"}
+  ],
+  "deadlines": [],
+  "assistantMessage": "I've canceled your family dinner for next Tuesday and added the meeting."
+}
+
+Return ONLY the JSON object. No markdown. No explanations.`;
 
 // =======================
 // MAIN HANDLER
@@ -385,8 +522,8 @@ serve(async (req) => {
             throw new Error('OPENAI_API_KEY not configured')
         }
 
-        // Get current date for context
-        const today = currentDate ? new Date(currentDate + 'T12:00:00') : new Date();
+        // Get current date for context with proper timezone handling
+        const today = currentDate ? new Date(currentDate + 'T12:00:00Z') : new Date();
         const todayStr = today.toISOString().split('T')[0];
         const dayOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][today.getDay()];
 
@@ -396,46 +533,60 @@ serve(async (req) => {
             d.setDate(today.getDate() + i);
             const dayName = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getDay()];
             return `${dayName}: ${d.toISOString().split('T')[0]}`;
-        }).join(", ");
+        }).join("\n");
 
-        // Build messages array
+        // Build current schedule summary with better formatting
+        const currentSchedule = (calendar || []).map((e: any) => {
+            const timeInfo = e.day ? `${e.day} ${e.start}-${e.end}` : `${e.date} ${e.start}-${e.end}`;
+            const flexInfo = e.flexibility === "fixed" ? " [FIXED]" : "";
+            return `${timeInfo}: ${e.title}${flexInfo}`;
+        }).join("\n") || "No events scheduled";
+
+        // Build messages array with improved context
         const messages: any[] = [
             { role: "system", content: EXTRACTION_PROMPT }
         ];
 
+        // Add conversation history if available (preserves multi-turn context)
         if (conversationHistory && conversationHistory.length > 0) {
             messages.push(...conversationHistory);
         }
 
-        const currentSchedule = (calendar || []).map((e: any) => {
-            const timeInfo = e.day ? `${e.day} ${e.start}-${e.end}` : `${e.date} ${e.start}-${e.end}`;
-            return `${timeInfo}: ${e.title}`;
-        }).join("\n");
+        // Create comprehensive context message
+        const contextMessage = `USER REQUEST: ${message}
+
+CURRENT DATE: ${todayStr} (${dayOfWeek})
+USER TIMEZONE: Inferred from currentDate parameter
+
+UPCOMING WEEK:
+${upcomingDates}
+
+CURRENT SCHEDULE:
+${currentSchedule}
+
+Please process the user's request and return the appropriate actions.`;
 
         messages.push({
             role: "user",
-            content: JSON.stringify({
-                message,
-                currentDate: todayStr,
-                currentDayOfWeek: dayOfWeek,
-                upcomingWeek: upcomingDates,
-                currentSchedule,
-            })
+            content: contextMessage
         });
 
-        // Call OpenAI
-        const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        // Convert messages to single string input for Responses API
+        const promptInput = messages.map(m => {
+            const role = m.role === "system" ? "SYSTEM" : m.role === "user" ? "USER" : "ASSISTANT";
+            return `[${role}]\n${m.content}`;
+        }).join("\n\n");
+
+        // Call OpenAI Responses API (GPT-5.1)
+        const openaiResponse = await fetch('https://api.openai.com/v1/responses', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${openaiApiKey}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                model: 'gpt-4o-mini',
-                messages,
-                response_format: { type: 'json_object' },
-                temperature: 0.7,
-                max_tokens: 1500,
+                model: 'gpt-5.1',
+                input: promptInput,
             }),
         })
 
@@ -445,9 +596,19 @@ serve(async (req) => {
         }
 
         const openaiData = await openaiResponse.json()
-        const rawContent = openaiData.choices[0].message.content;
+        const rawContent = openaiData.output_text;
         const cleanContent = rawContent.replace(/```json\n?|```/g, "").trim();
-        const summary: SummaryJSON = JSON.parse(cleanContent);
+
+        // Parse and validate LLM response
+        let summary: SummaryJSON;
+        try {
+            const parsed = JSON.parse(cleanContent);
+            summary = validateLLMResponse(parsed);
+        } catch (validationError: any) {
+            console.error('LLM response validation failed:', validationError.message);
+            console.error('Raw response:', cleanContent);
+            throw new Error(`Invalid LLM response: ${validationError.message}`);
+        }
 
         const hasActions = summary.actions && summary.actions.length > 0;
 
@@ -457,44 +618,52 @@ serve(async (req) => {
                 JSON.stringify({
                     events: calendar || [],
                     deadlines: summary.deadlines || [],
-                    assistantMessage: summary.assistantMessage || "I've processed your request!",
+                    assistantMessage: summary.assistantMessage || "Got it! Let me know if you need anything else.",
                 }),
                 { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             )
         }
 
         // Expand calendar with actions
-        const updatedEvents = await expandCalendar(summary.actions || [], calendar || []);
+        const updatedEvents = await expandCalendar(summary.actions, calendar || []);
 
         // Resolve conflicts
-        const { events: conflictFreeEvents, notes: conflictNotes } = resolveConflicts(updatedEvents);
+        const { events: conflictFreeEvents, notes: conflictNotes, hasUnresolved } = resolveConflicts(updatedEvents);
 
-        const needsClarification = conflictNotes.some(n => n.status === "unresolved" || n.outsidePreferred);
-        let assistantMessage = summary.assistantMessage || "I've updated your schedule.";
+        let assistantMessage = summary.assistantMessage;
+        let finalEvents = conflictFreeEvents;
 
-        if (needsClarification) {
-            const first = conflictNotes.find(n => n.status === "unresolved" || n.outsidePreferred);
-            const changeHint = first?.newTime ? ` to ${first.newTime}` : "";
-            assistantMessage = `I spotted a conflict: ${first?.title} on ${first?.dateLabel} at ${first?.originalTime}${changeHint ? ` (proposed ${changeHint})` : ""}. Want me to move it later today or shift it to another day? I haven't changed anything yet.`;
-        } else if (conflictNotes.length) {
-            const conflictSummary = conflictNotes.map(n =>
-                n.status === "resolved"
-                    ? `${n.title} on ${n.dateLabel} moved to ${n.newTime} (was ${n.originalTime})${n.outsidePreferred ? "; it's outside the usual window, want me to adjust?" : ""}.`
-                    : `${n.title} on ${n.dateLabel} still overlaps (was ${n.originalTime}).`
-            ).join(" ");
-            assistantMessage = `I adjusted your schedule to avoid conflicts. ${conflictSummary}`;
+        // Improve conflict messaging
+        if (hasUnresolved) {
+            // Critical conflicts that can't be auto-resolved
+            const unresolvedConflicts = conflictNotes.filter(n => n.status === "unresolved");
+            if (unresolvedConflicts.length > 0) {
+                const first = unresolvedConflicts[0];
+                assistantMessage = `I found a conflict: "${first.title}" on ${first.dateLabel} at ${first.originalTime} conflicts with existing events. ${first.reason}. Would you like me to try a different time or day?`;
+                // Return calendar WITH the conflicting event so user can see it
+                finalEvents = conflictFreeEvents;
+            }
+        } else if (conflictNotes.length > 0) {
+            // Auto-resolved conflicts - inform user
+            const resolvedConflicts = conflictNotes.filter(n => n.status === "resolved");
+            if (resolvedConflicts.length > 0) {
+                const adjustments = resolvedConflicts.map(n =>
+                    `"${n.title}" moved to ${n.newTime}${n.outsidePreferred ? " (outside usual time)" : ""}`
+                ).join(", ");
+                assistantMessage = `${summary.assistantMessage} I adjusted some times to avoid conflicts: ${adjustments}.`;
+            }
         }
 
-        const responseEvents = needsClarification ? calendar : conflictFreeEvents;
-
+        // Add IDs to deadlines
         const deadlinesWithIds = (summary.deadlines || []).map(d => ({
             ...d,
-            id: (d as any).id || generateUUID()
+            id: (d as any).id || generateUUID(),
+            completed: false,
         }));
 
         return new Response(
             JSON.stringify({
-                events: responseEvents || [],
+                events: finalEvents || [],
                 deadlines: deadlinesWithIds,
                 assistantMessage,
             }),

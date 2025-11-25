@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Forward to Supabase Edge Function
+        // Call Supabase Edge Function
         const response = await fetch(`${supabaseUrl}/functions/v1/naiya-process`, {
             method: "POST",
             headers: {
@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
 
         if (!response.ok) {
             const error = await response.text();
+            console.error("Supabase Edge Function error:", error);
             return NextResponse.json(
                 { error: "Backend request failed", details: error },
                 { status: response.status }

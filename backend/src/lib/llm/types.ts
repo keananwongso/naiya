@@ -7,7 +7,8 @@ export type IntentType =
     | "modify_event"    // Changing existing event(s)
     | "cancel_day"      // Blocking out a day (sick, travel, etc.)
     | "small_command"   // Quick change (move one thing, delete one thing)
-    | "chat_only";      // Just chatting, no calendar changes
+    | "chat_only"       // Just chatting, no calendar changes
+    | "any";            // Any type - let extractSummary determine
 
 export interface IntentClassification {
     intent: IntentType;
@@ -17,7 +18,9 @@ export interface IntentClassification {
 // Stage 2: Summary Extraction (Consolidated)
 export interface ExtractedEvent {
     title: string;
-    day: "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
+    // Use EITHER day (recurring) OR date (one-time), never both
+    day?: "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
+    date?: string; // "YYYY-MM-DD"
     start: string;    // "HH:MM"
     end: string;      // "HH:MM"
     type: "class" | "personal" | "routine" | "other";
@@ -48,11 +51,12 @@ export interface ExtractedPreferences {
 export interface CalendarAction {
     type: "add" | "delete" | "modify" | "exclude_date";
     title: string;
-    day: "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
+    // Use EITHER day (recurring) OR date (one-time), never both
+    day?: "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
+    date?: string; // For one-time events or exclude_date action (YYYY-MM-DD)
     start?: string; // "HH:MM"
     end?: string; // "HH:MM"
     flexibility?: "fixed" | "strong" | "medium" | "low" | "high";
-    date?: string; // For exclude_date action (YYYY-MM-DD)
 }
 
 export interface SummaryJSON {

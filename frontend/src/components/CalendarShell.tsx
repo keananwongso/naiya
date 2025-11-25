@@ -117,7 +117,7 @@ export function CalendarShell({
   events: CalendarEvent[];
   setEvents: React.Dispatch<React.SetStateAction<CalendarEvent[]>>;
   tags: Tag[];
-  onCalendarUpdateRef?: React.MutableRefObject<((message: string) => Promise<void>) | null>;
+  onCalendarUpdateRef?: React.MutableRefObject<((message: string, conversationHistory?: Array<{ role: 'user' | 'assistant', content: string }>) => Promise<void>) | null>;
   setAssistantMessage?: React.Dispatch<React.SetStateAction<string>>;
   setIsProcessing?: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
@@ -187,7 +187,7 @@ export function CalendarShell({
     });
   };
 
-  const handleDeleteEvent = (originalId: string) => {
+  const handleDeleteEvent = (originalId: string, _recurrenceMode?: "single" | "future" | "all") => {
     setEvents((prev) => {
       const nextEvents = prev.filter((e) => e.id !== originalId);
       saveCalendar(nextEvents).catch((err) =>
@@ -251,7 +251,7 @@ export function CalendarShell({
     return null;
   };
 
-  const handleCalendarUpdate = async (message: string) => {
+  const handleCalendarUpdate = async (message: string, conversationHistory?: Array<{ role: 'user' | 'assistant', content: string }>) => {
     const setProcessing = setParentIsProcessing || setLocalIsProcessing;
     const setMessage = setParentAssistantMessage || setLocalAssistantMessage;
 
@@ -265,7 +265,7 @@ export function CalendarShell({
         flexibility: e.flexibility || (e.type === "COMMITMENT" ? "fixed" : "medium"),
       }));
 
-      const result = await processNaiya(backendEvents, message);
+      const result = await processNaiya(backendEvents, message, conversationHistory);
       setMessage(result.assistantMessage);
 
       if (result.events) {
@@ -317,7 +317,7 @@ export function CalendarShell({
     }
   }, [onCalendarUpdateRef, events]);
 
-  const handleSaveEvent = (updated: Base44Event, recurrence?: Recurrence) => {
+  const handleSaveEvent = (updated: Base44Event, recurrence?: Recurrence, recurrenceMode?: "single" | "future" | "all") => {
     // If recurrence changed, we might need to delete old and create new, 
     // but for now let's just update the single event if no recurrence change logic is requested.
     // The user request implies editing recurrence, which is complex for existing events.
@@ -429,22 +429,19 @@ export function CalendarShell({
         const [sh, sm] = event.start.split(":").map(Number);
         const [eh, em] = event.end.split(":").map(Number);
 
-        const start = new Date(day);
-        start.setHours(sh ?? 0, sm ?? 0, 0, 0);
-
-        const end = new Date(day);
-        end.setHours(eh ?? sh ?? 0, em ?? sm ?? 0, 0, 0);
+        const start = `${format(day, "yyyy-MM-dd")}T${(sh ?? 0).toString().padStart(2, "0")}:${(sm ?? 0).toString().padStart(2, "0")}:00`;
+        const end = `${format(day, "yyyy-MM-dd")}T${(eh ?? sh ?? 0).toString().padStart(2, "0")}:${(em ?? sm ?? 0).toString().padStart(2, "0")}:00`;
 
         // Find tag color
         const tag = tags.find(t => t.id === event.tagId);
         const color = tag ? tag.color : (sourceColor[event.source] ?? "sage");
 
         mapped.push({
-          id: `${event.id}-${start.toISOString()}`,
+          id: `${event.id}-${start}`,
           originalId: event.id,
           title: event.title,
-          start_date: start.toISOString(),
-          end_date: end.toISOString(),
+          start_date: start,
+          end_date: end,
           all_day: false,
           color: color as string, // Cast to string
           tagId: event.tagId,

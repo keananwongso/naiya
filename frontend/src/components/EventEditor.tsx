@@ -1,6 +1,7 @@
 import { X, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Tag, Recurrence, DayKey } from "shared/types";
+import { RecurringEditModal } from "./RecurringEditModal";
 
 type Base44Event = {
   id: string;
@@ -17,8 +18,8 @@ type Props = {
   event: Base44Event | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (event: Base44Event, recurrence?: Recurrence) => void;
-  onDelete: (id: string) => void;
+  onSave: (event: Base44Event, recurrence?: Recurrence, recurrenceMode?: "single" | "future" | "all") => void;
+  onDelete: (id: string, recurrenceMode?: "single" | "future" | "all") => void;
   tags: Tag[];
 };
 
@@ -32,6 +33,23 @@ export function EventEditor({
 }: Props) {
   const [editedEvent, setEditedEvent] = useState<Base44Event | null>(event);
   const [recurrence, setRecurrence] = useState<Recurrence>({ type: "none" });
+  const [showRecurringModal, setShowRecurringModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"save" | "delete" | null>(null);
+  const [pendingMode, setPendingMode] = useState<"single" | "future" | "all" | null>(null);
+
+  useEffect(() => {
+    if (event) {
+      setEditedEvent(event);
+      // If the event already has recurrence, use it; otherwise infer weekly if it has a day
+      if ((event as any).recurrence) {
+        setRecurrence((event as any).recurrence);
+      } else if ((event as any).day) {
+        setRecurrence({ type: "weekly", days: [(event as any).day as DayKey] });
+      } else {
+        setRecurrence({ type: "none" });
+      }
+    }
+  }, [event]);
 
   if (!isOpen || !editedEvent) return null;
 
@@ -84,8 +102,8 @@ export function EventEditor({
                 <span className="text-xs font-medium text-[var(--muted)]">Start</span>
                 <input
                   type="datetime-local"
-                  value={new Date(editedEvent.start_date).toISOString().slice(0, 16)}
-                  onChange={(e) => setEditedEvent({ ...editedEvent, start_date: new Date(e.target.value).toISOString() })}
+                  value={editedEvent.start_date ? editedEvent.start_date.slice(0, 16) : ""}
+                  onChange={(e) => setEditedEvent({ ...editedEvent, start_date: `${e.target.value}:00` })}
                   className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
                 />
               </div>
@@ -93,8 +111,8 @@ export function EventEditor({
                 <span className="text-xs font-medium text-[var(--muted)]">End</span>
                 <input
                   type="datetime-local"
-                  value={editedEvent.end_date ? new Date(editedEvent.end_date).toISOString().slice(0, 16) : ""}
-                  onChange={(e) => setEditedEvent({ ...editedEvent, end_date: new Date(e.target.value).toISOString() })}
+                  value={editedEvent.end_date ? editedEvent.end_date.slice(0, 16) : ""}
+                  onChange={(e) => setEditedEvent({ ...editedEvent, end_date: `${e.target.value}:00` })}
                   className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
                 />
               </div>
@@ -180,14 +198,22 @@ export function EventEditor({
                 ))}
               </div>
             )}
+            {recurrence.type === "weekly" && (
+              <p className="text-xs text-[var(--muted)] mt-2">Repeats weekly on {((recurrence.days && recurrence.days[0]) || (editedEvent as any).day || "").toString()}</p>
+            )}
           </div>
         </div>
 
         <div className="flex justify-between mt-8 pt-4 border-t border-[var(--border)]">
           <button
             onClick={() => {
-              onDelete(editedEvent.originalId || editedEvent.id);
-              onClose();
+              if (recurrence.type !== "none") {
+                setPendingAction("delete");
+                setShowRecurringModal(true);
+              } else {
+                onDelete(editedEvent.originalId || editedEvent.id);
+                onClose();
+              }
             }}
             className="text-red-500/80 hover:text-red-600 flex items-center gap-2 text-sm font-medium px-3 py-2 hover:bg-red-50 rounded-lg transition-colors"
           >
@@ -195,16 +221,41 @@ export function EventEditor({
           </button>
           <button
             onClick={() => {
-              onSave(editedEvent, recurrence);
-              onClose();
+              if (recurrence.type !== "none") {
+                setPendingAction("save");
+                setShowRecurringModal(true);
+              } else {
+                onSave({ ...editedEvent, recurrence }, recurrence);
+                onClose();
+              }
             }}
             className="bg-[var(--foreground)] text-[var(--background)] px-6 py-2 rounded-xl font-medium hover:opacity-90 transition-opacity shadow-sm"
           >
             Save
           </button>
         </div>
+
+        <RecurringEditModal
+          isOpen={showRecurringModal}
+          onClose={() => {
+            setShowRecurringModal(false);
+            setPendingAction(null);
+            setPendingMode(null);
+          }}
+          onConfirm={(mode) => {
+            setPendingMode(mode);
+            if (pendingAction === "save") {
+              onSave({ ...editedEvent, recurrence }, recurrence, mode);
+            } else if (pendingAction === "delete") {
+              onDelete(editedEvent.originalId || editedEvent.id, mode);
+            }
+            setShowRecurringModal(false);
+            setPendingAction(null);
+            setPendingMode(null);
+            onClose();
+          }}
+        />
       </div>
     </div>
   );
 }
-

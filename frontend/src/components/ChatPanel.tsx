@@ -12,7 +12,7 @@ type ChatMessage = {
 type Props = {
   transcript?: ChatMessage[];
   notes?: string[];
-  onSubmit?: (message: string) => Promise<void>;
+  onSubmit?: (message: string, conversationHistory?: Array<{ role: 'user' | 'assistant', content: string }>) => Promise<void>;
   assistantMessage?: string;
   isProcessing?: boolean;
 };
@@ -41,12 +41,18 @@ export function ChatPanel({
     const userMessage = input.trim();
     setInput("");
 
+    // Build conversation history from current transcript (before adding new message)
+    const conversationHistory = localTranscript.map(msg => ({
+      role: msg.role === "naiya" ? "assistant" as const : "user" as const,
+      content: msg.text
+    }));
+
     // Add user message to transcript
     setLocalTranscript(prev => [...prev, { role: "user", text: userMessage }]);
 
-    // Call backend
+    // Call backend with conversation history
     if (onSubmit) {
-      await onSubmit(userMessage);
+      await onSubmit(userMessage, conversationHistory);
     }
   };
 
@@ -143,16 +149,12 @@ export function ChatPanel({
 
   return (
     <section className="flex flex-col h-full bg-[var(--surface)] border-l border-[var(--border)]">
-      <div className="p-6 border-b border-[var(--border)]">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-              Chat adjustments
-            </p>
-            <h2 className="text-xl font-semibold text-[var(--foreground)] mt-1">
-              Ask in plain language.
-            </h2>
-          </div>
+      <div className="px-4 py-4 border-b border-[var(--border)] flex items-center justify-between">
+        <div className="flex flex-col leading-tight space-y-1">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">Naiya</p>
+          <h2 className="text-sm font-semibold text-[var(--foreground)] m-0 leading-snug">
+            Brain-dump your week here.
+          </h2>
         </div>
       </div>
 

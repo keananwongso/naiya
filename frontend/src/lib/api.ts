@@ -75,7 +75,8 @@ export async function updateCalendar(
 
 export async function processNaiya(
     calendar: CalendarEvent[],
-    message: string
+    message: string,
+    conversationHistory?: Array<{ role: 'user' | 'assistant', content: string }>
 ): Promise<{ events: CalendarEvent[]; deadlines: any[]; assistantMessage: string }> {
     // Get current date in client's timezone (YYYY-MM-DD format)
     const now = new Date();
@@ -83,7 +84,7 @@ export async function processNaiya(
 
     return callAPI<{ events: CalendarEvent[]; deadlines: any[]; assistantMessage: string }>(
         "/naiya/process",
-        { calendar, message, currentDate }
+        { calendar, message, currentDate, conversationHistory }
     );
 }
 

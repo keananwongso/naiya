@@ -43,7 +43,8 @@ export function scheduleWeek(
                 day: day,
                 start: item.start,
                 end: item.end,
-                flexibility: item.flexibility || "strong"
+                flexibility: item.flexibility || "strong",
+                source: "custom"
             });
         });
     });
@@ -57,7 +58,8 @@ export function scheduleWeek(
             day: item.day,
             start: item.start,
             end: item.end,
-            flexibility: item.flexibility || "medium"
+            flexibility: item.flexibility || "medium",
+            source: "study"
         });
     });
 
@@ -78,10 +80,11 @@ export function scheduleWeek(
             id: uuidv4(),
             title: item.title,
             type: "OTHER",
-            day: day,
+            date: item.date, // Use date instead of day for one-time events
             start: item.start,
             end: item.end,
-            flexibility: item.flexibility || "medium"
+            flexibility: item.flexibility || "medium",
+            source: "custom"
         });
     });
 
@@ -114,11 +117,12 @@ export function scheduleWeek(
             id: uuidv4(),
             title: `DEADLINE: ${item.title}`,
             type: "COMMITMENT",
-            day: day,
+            date: item.date, // Use date for deadlines
             start: "00:00",
             end: "23:59", // All day
             flexibility: "fixed",
-            course: item.course
+            course: item.course,
+            source: "commitment"
         });
     });
 
@@ -140,7 +144,8 @@ export function scheduleWeek(
                     start: formatTime(placed.start),
                     end: formatTime(placed.end),
                     flexibility: "medium",
-                    course: plan.deadlineTitle // Or infer course
+                    course: plan.deadlineTitle, // Or infer course
+                    source: "study"
                 });
             } else {
                 // Could not place study block - maybe log or add to assistant message

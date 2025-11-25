@@ -159,8 +159,8 @@ export function Base44WeekView({
     } else {
       onEventUpdate({
         ...event,
-        start_date: formatISO(newStart),
-        end_date: formatISO(newEnd),
+        start_date: format(newStart, "yyyy-MM-dd'T'HH:mm:ss"),
+        end_date: format(newEnd, "yyyy-MM-dd'T'HH:mm:ss"),
       });
     }
   };
@@ -177,8 +177,8 @@ export function Base44WeekView({
 
       onEventUpdate({
         ...pendingResize.event,
-        start_date: formatISO(pendingResize.start),
-        end_date: formatISO(pendingResize.end),
+        start_date: format(pendingResize.start, "yyyy-MM-dd'T'HH:mm:ss"),
+        end_date: format(pendingResize.end, "yyyy-MM-dd'T'HH:mm:ss"),
       });
     }
     setRecurringModalOpen(false);
@@ -241,8 +241,8 @@ export function Base44WeekView({
     } else {
       onEventUpdate({
         ...draggedEvent,
-        start_date: formatISO(finalStart),
-        end_date: formatISO(finalEnd),
+        start_date: format(finalStart, "yyyy-MM-dd'T'HH:mm:ss"),
+        end_date: format(finalEnd, "yyyy-MM-dd'T'HH:mm:ss"),
       });
     }
   };
@@ -257,8 +257,8 @@ export function Base44WeekView({
       id: "",
       originalId: "",
       title: "New Event",
-      start_date: formatISO(start),
-      end_date: formatISO(end),
+      start_date: format(start, "yyyy-MM-dd'T'HH:mm:ss"),
+      end_date: format(end, "yyyy-MM-dd'T'HH:mm:ss"),
       color: "sage",
     });
   };
@@ -334,7 +334,7 @@ export function Base44WeekView({
 
               {days.map((day) => {
                 const hourEvents = getEventsForDayAndHour(day, hour);
-                const cellId = `cell|${formatISO(day)}|${hour}`;
+    const cellId = `cell|${format(day, "yyyy-MM-dd'T'HH:mm:ssXXX")}|${hour}`;
 
                 return (
                   <DroppableCell

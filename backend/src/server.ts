@@ -11,6 +11,7 @@ import { handleParseCategories } from "./api/parse-categories.js";
 import { handlePlanWeek } from "./api/plan-week.js";
 import { handleUpdateCalendar } from "./api/update-calendar.js";
 import { handleNaiyaProcess } from "./api/naiya-process.js";
+import { transcribeAudio } from "./lib/llm/transcribe.js";
 
 const app = new Hono();
 
@@ -35,6 +36,38 @@ app.post("/api/naiya/process", async (c) => {
 
     console.log("📤 [NAIYA-PROCESS] Response:", JSON.stringify(result, null, 2));
     return c.json(result);
+});
+
+// NEW: Brain Dump Audio Endpoint
+app.post("/brain-dump/audio", async (c) => {
+    console.log("\n🎙️ [BRAIN-DUMP] Audio received");
+    try {
+        const body = await c.req.parseBody();
+        const audioFile = body['audio'];
+
+        if (!audioFile || !(audioFile instanceof File)) {
+            return c.json({ error: "No audio file provided" }, 400);
+        }
+
+        // Validate size (25MB limit)
+        if (audioFile.size > 25 * 1024 * 1024) {
+            console.error("❌ File too large:", audioFile.size);
+            return c.json({ error: "File size exceeds 25MB limit" }, 400);
+        }
+
+        console.log(`📦 File size: ${audioFile.size} bytes`);
+
+        // Transcribe
+        const transcript = await transcribeAudio(audioFile);
+        console.log("📝 Transcript:", transcript);
+
+        // Return transcript as plain text JSON
+        return c.json({ transcript });
+
+    } catch (error: any) {
+        console.error("❌ [BRAIN-DUMP] Error:", error);
+        return c.json({ error: "Transcription failed", details: error.message }, 500);
+    }
 });
 
 // API Routes - wrap handlers for Hono

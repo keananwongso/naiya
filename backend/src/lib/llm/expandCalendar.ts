@@ -15,10 +15,26 @@ export async function expandCalendar(decision: DecisionWrapper, currentCalendar:
     // Apply actions in order
     for (const action of decision.actions) {
         if (action.type === "add") {
+            // Check if this event already exists to avoid duplicates
+            const isDuplicate = updatedCalendar.some(e =>
+                e.title.toLowerCase() === action.title.toLowerCase() &&
+                ((action.day && e.day === action.day) || (action.date && e.date === action.date)) &&
+                e.start === (action.start || "00:00") &&
+                e.end === (action.end || "00:00")
+            );
+
+            if (isDuplicate) {
+                // Skip adding this event - it already exists
+                console.log(`⏭️  Skipping duplicate event: ${action.title} on ${action.day || action.date}`);
+                continue;
+            }
+
             const newEvent: CalendarEvent = {
                 id: uuidv4(),
                 title: action.title,
-                day: action.day,
+                // Use EITHER day (recurring) OR date (one-time), never both
+                ...(action.day ? { day: action.day } : {}),
+                ...(action.date ? { date: action.date } : {}),
                 start: action.start || "00:00",
                 end: action.end || "00:00",
                 type: "ROUTINE", // Default type, could be inferred from title/source
@@ -59,13 +75,14 @@ export async function expandCalendar(decision: DecisionWrapper, currentCalendar:
 
             const index = updatedCalendar.findIndex(e =>
                 e.title.toLowerCase() === action.title.toLowerCase() &&
-                (e.day === action.day || !action.day) // If day matches or not specified (though schema says day is required)
+                ((action.day && e.day === action.day) || (action.date && e.date === action.date) || (!action.day && !action.date))
             );
 
             if (index !== -1) {
                 updatedCalendar[index] = {
                     ...updatedCalendar[index],
-                    day: action.day,
+                    ...(action.day ? { day: action.day, date: undefined } : {}),
+                    ...(action.date ? { date: action.date, day: undefined } : {}),
                     start: action.start || updatedCalendar[index].start,
                     end: action.end || updatedCalendar[index].end,
                     flexibility: action.flexibility || updatedCalendar[index].flexibility
@@ -73,14 +90,15 @@ export async function expandCalendar(decision: DecisionWrapper, currentCalendar:
             }
 
         } else if (action.type === "delete") {
-            // Find event to delete by title, day, and optionally time
+            // Find event to delete by title, day/date, and optionally time
             updatedCalendar = updatedCalendar.filter(e => {
                 // Loose title matching: check if one includes the other
                 const t1 = e.title.toLowerCase();
                 const t2 = action.title.toLowerCase();
                 const titleMatch = t1 === t2 || t1.includes(t2) || t2.includes(t1);
 
-                const dayMatch = e.day === action.day;
+                // Match on day (recurring) or date (one-time)
+                const dayOrDateMatch = (action.day && e.day === action.day) || (action.date && e.date === action.date);
 
                 // If action has a start time, require it to match (exact or close?)
                 // For now, exact match on start string.
@@ -88,7 +106,7 @@ export async function expandCalendar(decision: DecisionWrapper, currentCalendar:
                 const timeMatch = action.start ? e.start === action.start : true;
 
                 // Return false to keep the event (if it matches, we filter it out)
-                return !(titleMatch && dayMatch && timeMatch);
+                return !(titleMatch && dayOrDateMatch && timeMatch);
             });
 
         } else if (action.type === "exclude_date") {

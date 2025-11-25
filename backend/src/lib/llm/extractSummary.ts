@@ -22,7 +22,9 @@ JSON SCHEMA (STRICT)
   "events": [
     {
       "title": "string",
-      "day": "Mon|Tue|Wed|Thu|Fri|Sat|Sun",
+      "day": "Mon|Tue|Wed|Thu|Fri|Sat|Sun",  // For RECURRING events (e.g., "Stats class every Monday")
+      "date": "YYYY-MM-DD",  // For ONE-TIME events (e.g., "Meeting on Nov 25th")
+      // NOTE: Use EITHER 'day' OR 'date', never both
       "start": "HH:MM",
       "end": "HH:MM",
       "type": "class|personal|routine|other",
@@ -53,29 +55,53 @@ JSON SCHEMA (STRICT)
   },
   "actions": [
     {
-      "type": "add|delete|modify",
+      "type": "add|delete|modify|exclude_date",
       "title": "string",
-      "day": "Mon|Tue|Wed|Thu|Fri|Sat|Sun",
+      "day": "Mon|Tue|Wed|Thu|Fri|Sat|Sun",  // For recurring
+      "date": "YYYY-MM-DD",  // For one-time
+      // NOTE: Use EITHER 'day' OR 'date', never both
       "start": "HH:MM",
       "end": "HH:MM",
       "flexibility": "fixed|strong|medium|low|high"
     }
-  ],
+  ],  // For time-based actions. Use "exclude_date" to skip one instance of a recurring event.
   "assistantMessage": "string"
 }
 
 =========================
 RULES
 =========================
-• ALWAYS fill the JSON correctly.  
-• If uncertain, leave fields empty rather than hallucinating.  
+• ALWAYS fill the JSON correctly.
+• If uncertain, leave fields empty rather than hallucinating.
 • Automatically normalize:
     - day names → Mon/Tue/...
     - times → 24-hour HH:MM
-    - vague times (“morning”) → approximate (07:00)
-• Detect which items are recurring vs one-off.
+    - vague times ("morning") → approximate (07:00)
+
+• CRITICAL: RECURRING vs ONE-TIME detection (use context clues):
+    RECURRING (use "day" field):
+      - "I have Stats class on Mondays at 2pm"
+      - "Gym every Tuesday and Thursday 7-8am"
+      - "Office hours Wednesdays 3-5pm"
+      - "Weekly team meeting on Fridays"
+      - Implied ongoing: "I have CS class MWF at 10am" (clearly a semester-long class)
+
+    ONE-TIME (use "date" field):
+      - "I have a meeting on Monday at 2pm" (no "every" or ongoing implication)
+      - "Dinner with Sarah on Nov 25th 6-7pm"
+      - "Doctor appointment next Tuesday at 3pm"
+      - "Coffee chat this Friday at 10am"
+      - Any event with a specific date mentioned (Nov 25, 11/25, next Tuesday when user gives context)
+
+    KEY INDICATORS:
+      - "every", "weekly", "each" → RECURRING (use "day")
+      - "this", "next", "tomorrow", specific dates → ONE-TIME (use "date")
+      - Classes, lectures, office hours → usually RECURRING
+      - Meetings, appointments, social events → usually ONE-TIME unless explicitly recurring
+      - When ambiguous and user says just "Monday", check if it's a class/routine (recurring) or appointment (one-time)
+
 • Extract total study HOURS from phrases like:
-      “I need 8 hours”, “study a bit”, “review”, etc.
+      "I need 8 hours", "study a bit", "review", etc.
 • FLEXIBILITY:
       class = low
       exam date = fixed
@@ -83,6 +109,27 @@ RULES
       gym / routine personal = high
 • CRITICAL: You MUST generate an "add" action in the 'actions' array for EVERY event you extract in the 'events' array.
 • Output a short assistantMessage summarizing what you understood.
+
+• CONFLICT AVOIDANCE:
+  - You will receive a map of busy windows per day in the payload ("busyWindows").
+  - DO NOT schedule new events inside busy windows unless the user explicitly tells you to override.
+  - Prefer flexible events to be placed in free windows; fixed events should not move unless the user says so.
+
+• ASSISTANT VOICE:
+  - assistantMessage should be brief (1–2 sentences), friendly, and sound like a personal assistant.
+  - Acknowledge any moves/constraints (“I moved lunch later to avoid overlap”).
+  - Do not apologize or add filler. Do not invent events or details.
+  - If the user asked an informational question only, answer it succinctly without claiming to update the schedule.
+  - When summarizing a week, use tidy bullets or short lines (no run-on commas). Keep it scannable.
+
+• SINGLE-INSTANCE CANCELLATIONS:
+  - If the user cancels a specific occurrence of a recurring event (e.g., “my class is canceled tomorrow” or “skip CS on Nov 28”), emit an action with type="exclude_date".
+  - Provide both the recurring day ("day") AND the exact "date" (resolved from currentDate/upcomingWeek) so we only skip that date.
+  - Do NOT delete the entire recurring event unless the user explicitly says to remove it everywhere.
+  - If the user cancels a one-time event (“cancel my Phil class tomorrow at 10”), emit an action with type="delete" and include the exact "date", "start", and "end" to match the instance in currentSchedule. Never leave canceled events in the calendar.
+
+• CANCELLATION MANDATE:
+  - Any message that clearly cancels/skips an event MUST include a matching "delete" (for one-time) or "exclude_date" (for recurring) action in the actions array. Do not omit it.
 
 =========================
 RESPONSE FORMAT
@@ -109,11 +156,34 @@ CRITICAL INSTRUCTIONS FOR BRAIN DUMPS:
     - Use the provided 'upcomingWeek' context to resolve "this Friday" or "next Monday" to specific dates.
     - If the user implies a single instance (e.g. "got cancelled") but doesn't specify a date, assume the upcoming occurrence of that day.`;
 
-export async function extractSummary(message: string, intent: IntentType, calendar: CalendarEvent[] = []): Promise<SummaryJSON> {
+const buildBusyWindows = (calendar: CalendarEvent[]) => {
+  const buckets: Record<string, Array<{ start: string; end: string }>> = {};
+  calendar.forEach((e) => {
+    const key = e.date || e.day;
+    if (!key) return;
+    if (!buckets[key]) buckets[key] = [];
+    buckets[key].push({ start: e.start, end: e.end });
+  });
+  // Sort each bucket
+  Object.keys(buckets).forEach((key) => {
+    buckets[key] = buckets[key].sort(
+      (a, b) => a.start.localeCompare(b.start)
+    );
+  });
+  return buckets;
+};
+
+export async function extractSummary(
+  message: string,
+  intent: IntentType,
+  calendar: CalendarEvent[] = [],
+  clientDate?: string,
+  conversationHistory?: Array<{ role: 'user' | 'assistant', content: string }>
+): Promise<SummaryJSON> {
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  // Get current date for context
-  const today = new Date();
+  // Get current date for context - use client date if provided, otherwise use server date
+  const today = clientDate ? new Date(clientDate + 'T12:00:00') : new Date();
   const todayStr = today.toISOString().split('T')[0];
   const dayOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][today.getDay()];
 
@@ -125,22 +195,38 @@ export async function extractSummary(message: string, intent: IntentType, calend
     return `${dayName}: ${d.toISOString().split('T')[0]}`;
   }).join(", ");
 
+  // Build messages array with conversation history
+  const messages: Array<{ role: 'system' | 'user' | 'assistant', content: string }> = [
+    { role: "system", content: extractionPrompt }
+  ];
+
+  // Add conversation history if provided (for multi-turn conversations)
+  if (conversationHistory && conversationHistory.length > 0) {
+    messages.push(...conversationHistory);
+  }
+
+  const busyWindows = buildBusyWindows(calendar);
+
+  // Add current message with context
+  messages.push({
+    role: "user",
+    content: JSON.stringify({
+      message,
+      currentDate: todayStr,
+      currentDayOfWeek: dayOfWeek,
+      upcomingWeek: upcomingDates,
+      intent,
+      currentSchedule: calendar.map(e => {
+        const timeInfo = e.day ? `${e.day} ${e.start}-${e.end}` : `${e.date} ${e.start}-${e.end}`;
+        return `${timeInfo}: ${e.title}`;
+      }).join("\n"),
+      busyWindows,
+    })
+  });
+
   const completion = await client.chat.completions.create({
     model: "gpt-5.1",
-    messages: [
-      { role: "system", content: extractionPrompt },
-      {
-        role: "user",
-        content: JSON.stringify({
-          message,
-          currentDate: todayStr,
-          currentDayOfWeek: dayOfWeek,
-          upcomingWeek: upcomingDates,
-          intent,
-          currentSchedule: calendar.map(e => `${e.day} ${e.start}-${e.end}: ${e.title}`).join("\n")
-        })
-      }
-    ],
+    messages,
     max_completion_tokens: 1500
   });
 

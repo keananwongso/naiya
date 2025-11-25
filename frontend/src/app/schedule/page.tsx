@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { CalendarShell } from "@/components/CalendarShell";
 import { MiniCalendar } from "@/components/MiniCalendar";
 import { TodoList } from "@/components/TodoList";
-import { ChatPanel } from "@/components/ChatPanel";
+import { ChatPanelWithSessions } from "@/components/ChatPanelWithSessions";
 import { TagsManager } from "@/components/TagsManager";
 import { sampleTranscript, samplePlan } from "shared/sampleData";
 import { CalendarEvent, Tag } from "shared/types";
@@ -24,16 +24,16 @@ export default function SchedulePage() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Ref to access CalendarShell's handleCalendarUpdate
-  const calendarUpdateRef = useRef<((message: string) => Promise<void>) | null>(null);
+  const calendarUpdateRef = useRef<((message: string, conversationHistory?: Array<{ role: 'user' | 'assistant', content: string }>) => Promise<void>) | null>(null);
 
   // Wrapper to handle chat submission and extract deadlines
-  const handleChatSubmit = async (message: string) => {
+  const handleChatSubmit = async (message: string, conversationHistory?: Array<{ role: 'user' | 'assistant', content: string }>) => {
     if (!calendarUpdateRef.current) return;
 
     setIsProcessing(true);
     try {
-      // Call the calendar update which will trigger the API
-      await calendarUpdateRef.current(message);
+      // Call the calendar update which will trigger the API with conversation history
+      await calendarUpdateRef.current(message, conversationHistory);
 
       // Note: We need to intercept the API response to get deadlines
       // For now, this will be handled by modifying how CalendarShell processes responses
@@ -139,7 +139,7 @@ export default function SchedulePage() {
 
       {/* Right Chat Column */}
       <div className="w-[400px] shrink-0">
-        <ChatPanel
+        <ChatPanelWithSessions
           onSubmit={handleChatSubmit}
           assistantMessage={assistantMessage}
           isProcessing={isProcessing}

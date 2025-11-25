@@ -62,7 +62,12 @@ export interface CalendarEvent {
   id: string;
   title: string;
   type: EventType;
-  day: Day;
+
+  // Recurring events use 'day', one-time events use 'date'
+  // Exactly one of these must be set
+  day?: Day;  // Optional: "Mon" | "Tue" | ... (for weekly recurring events)
+  date?: string;  // Optional: "YYYY-MM-DD" (for one-time events)
+
   start: string;
   end: string;
   flexibility: Flexibility;

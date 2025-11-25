@@ -75,10 +75,17 @@ Input:
 4. currentDayOfWeek - today's day of the week
 
 Your job:
-- Parse the user's intent (move, delete, create).
+- Parse the user's intent (move, delete, create, skip).
 - Determine if the user explicitly wants to modify a "fixed" event.
 - Use currentDate to resolve relative dates like "next Friday", "tomorrow", etc.
 - Return a JSON object describing the intent.
+
+CRITICAL DATE CALCULATION RULES:
+- When the user says "tomorrow", calculate the EXACT date by adding 1 day to currentDate.
+- When the user says "next [day]", find the next occurrence of that day of the week.
+- When skipping a recurring event for a specific date, use the "skip" action with the EXACT date in YYYY-MM-DD format.
+- For excludedDates, ALWAYS use YYYY-MM-DD format (e.g., "2025-11-25", NOT "2025-11-26" if tomorrow is the 25th).
+- Double-check your date math: if currentDate is "2024-11-24" (Sunday) and user says "tomorrow's Tuesday class", that's IMPOSSIBLE - Tuesday is 2 days away, not tomorrow.
 
 Rules for Fixed Events:
 - Events with flexibility="fixed" (deadlines, exams) must NEVER be moved during normal rescheduling.
@@ -91,7 +98,7 @@ Output JSON Structure:
 {
   "assistant_message": "...",
   "intent": {
-    "type": "move" | "delete" | "create" | "unknown",
+    "type": "move" | "delete" | "create" | "skip" | "unknown",
     "targetEventId": "evt_123", 
     "explicitlyModifiesFixed": boolean,
     "newDate": "YYYY-MM-DD",
@@ -99,7 +106,8 @@ Output JSON Structure:
     "newEnd": "HH:MM",
     "newTitle": "...",
     "flexibility": "medium",
-    "days": ["Mon", "Wed", "Fri"]  // For recurring events (e.g., "CS class MWF")
+    "days": ["Mon", "Wed", "Fri"],  // For recurring events (e.g., "CS class MWF")
+    "date": "YYYY-MM-DD"  // For "skip" action - the exact date to exclude
   }
 }
 
@@ -107,5 +115,6 @@ Output JSON Structure:
 - For "create", targetEventId is null.
 - For recurring events (e.g., "I have CS class MWF"), set days to ["Mon", "Wed", "Fri"] and omit newDate.
 - For single events, omit days and use newDate instead.
+- For "skip" action, include the exact date to add to excludedDates.
 - Return ONLY raw JSON.
 `;

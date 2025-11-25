@@ -184,13 +184,16 @@ export const generateSchedule = (input: ScheduleInput): StudyPlan => {
   const ledger = createLedger();
 
   baseEvents.forEach((event) => {
-    addEventToLedger(
-      ledger,
-      event.day,
-      timeToMinutes(event.start),
-      timeToMinutes(event.end),
-      event.source,
-    );
+    // Only add recurring events (with day field) to ledger
+    if (event.day) {
+      addEventToLedger(
+        ledger,
+        event.day,
+        timeToMinutes(event.start),
+        timeToMinutes(event.end),
+        event.source,
+      );
+    }
   });
 
   const referenceDate = new Date(input.weekOf);

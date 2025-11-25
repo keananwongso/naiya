@@ -85,6 +85,13 @@ export default function Home() {
   const [braindumpText, setBraindumpText] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Timer state
+  const [isTimerActive, setIsTimerActive] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(0); // in seconds
+  const [activeEventId, setActiveEventId] = useState<string | null>(null);
+  const [miniTasks, setMiniTasks] = useState<Array<{ id: string; text: string; completed: boolean }>>([]);
+  const [newMiniTask, setNewMiniTask] = useState("");
+
   // Load calendar events and deadlines from Supabase
   useEffect(() => {
     let isMounted = true;
@@ -127,6 +134,113 @@ export default function Home() {
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Timer countdown logic
+  useEffect(() => {
+    if (!isTimerActive || timeRemaining <= 0) return;
+
+    const interval = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1) {
+          setIsTimerActive(false);
+          setActiveEventId(null);
+          setMiniTasks([]); // Clear mini-tasks when timer ends
+          setNewMiniTask("");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isTimerActive, timeRemaining]);
+
+  // Start timer for an event
+  const startTimer = (event: CalendarEvent) => {
+    // Parse event end time
+    const [endHour, endMinute] = event.end.split(':').map(Number);
+    const endInMinutes = endHour * 60 + endMinute;
+
+    // Get current time in minutes
+    const now = new Date();
+    const currentInMinutes = now.getHours() * 60 + now.getMinutes();
+
+    // Calculate remaining time from now to end time
+    let remainingMinutes = endInMinutes - currentInMinutes;
+
+    // Handle case where end time is past midnight (next day)
+    if (remainingMinutes < 0) {
+      remainingMinutes += 24 * 60;
+    }
+
+    const durationInSeconds = remainingMinutes * 60;
+
+    setTimeRemaining(durationInSeconds);
+    setActiveEventId(event.id);
+    setIsTimerActive(true);
+  };
+
+  // Stop timer
+  const stopTimer = () => {
+    setIsTimerActive(false);
+    setActiveEventId(null);
+    setTimeRemaining(0);
+    setMiniTasks([]); // Clear mini-tasks when timer stops
+    setNewMiniTask("");
+  };
+
+  // Add mini-task
+  const addMiniTask = () => {
+    if (!newMiniTask.trim()) return;
+    setMiniTasks(prev => [...prev, { id: Date.now().toString(), text: newMiniTask, completed: false }]);
+    setNewMiniTask("");
+  };
+
+  // Toggle mini-task completion
+  const toggleMiniTask = (id: string) => {
+    setMiniTasks(prev => prev.map(task =>
+      task.id === id ? { ...task, completed: !task.completed } : task
+    ));
+  };
+
+  // Delete mini-task
+  const deleteMiniTask = (id: string) => {
+    setMiniTasks(prev => prev.filter(task => task.id !== id));
+  };
+
+  // Format time remaining as HH:MM:SS
+  const formatTimeRemaining = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Check if current time is before/during/after an event
+  const getEventTimeStatus = (event: CalendarEvent) => {
+    const [startHour, startMinute] = event.start.split(':').map(Number);
+    const [endHour, endMinute] = event.end.split(':').map(Number);
+
+    const startInMinutes = startHour * 60 + startMinute;
+    const endInMinutes = endHour * 60 + endMinute;
+
+    const now = new Date();
+    const currentInMinutes = now.getHours() * 60 + now.getMinutes();
+
+    if (currentInMinutes < startInMinutes) {
+      const minutesEarly = startInMinutes - currentInMinutes;
+      return { status: 'early', minutes: minutesEarly };
+    } else if (currentInMinutes >= startInMinutes && currentInMinutes < endInMinutes) {
+      return { status: 'on-time', minutes: 0 };
+    } else {
+      const minutesLate = currentInMinutes - endInMinutes;
+      return { status: 'late', minutes: minutesLate };
+    }
+  };
 
 
 
@@ -292,27 +406,108 @@ export default function Home() {
         {/* Active Session or Next Up */}
         {/* Next Up */}
         <section className="space-y-4">
-          <h2 className="text-xl font-semibold">Next Up</h2>
-          {todayEvents.length > 0 ? (
-            <Card className="p-6 hover:shadow-md transition-shadow group cursor-pointer">
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <Badge className="border-transparent shadow-sm font-semibold !bg-[#D8F3DC] !text-[var(--foreground)]">
-                    {todayEvents[0].type || "Event"}
-                  </Badge>
-                  <h3 className="text-2xl font-bold">{todayEvents[0].title}</h3>
-                  <p className="text-[var(--muted-foreground)] flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    {todayEvents[0].start} - {todayEvents[0].end}
-                  </p>
+          <h2 className="text-xl font-semibold">{isTimerActive && activeEventId === todayEvents[0]?.id ? "Active Session" : "Next Up"}</h2>
+          {todayEvents.length > 0 ? (() => {
+            const timeStatus = getEventTimeStatus(todayEvents[0]);
+            return (
+              <Card className="p-6 hover:shadow-md transition-shadow group">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2 flex-1">
+                    <div className="flex items-center gap-2">
+                      <Badge className="border-transparent shadow-sm font-semibold !bg-[#D8F3DC] !text-[var(--foreground)]">
+                        {todayEvents[0].type || "Event"}
+                      </Badge>
+                      {isTimerActive && activeEventId === todayEvents[0].id && (
+                        <>
+                          {timeStatus.status === 'early' && (
+                            <Badge className="border-transparent shadow-sm font-semibold !bg-blue-100 !text-blue-700">
+                              Starting {timeStatus.minutes}m early
+                            </Badge>
+                          )}
+                          {timeStatus.status === 'late' && (
+                            <Badge className="border-transparent shadow-sm font-semibold !bg-orange-100 !text-orange-700">
+                              {timeStatus.minutes}m overtime
+                            </Badge>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    <h3 className="text-2xl font-bold">{todayEvents[0].title}</h3>
+                    <p className="text-[var(--muted-foreground)] flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      {todayEvents[0].start} - {todayEvents[0].end}
+                    </p>
+                  {isTimerActive && activeEventId === todayEvents[0].id && (
+                    <div className="text-3xl font-mono font-bold text-black mt-2">
+                      {formatTimeRemaining(timeRemaining)}
+                    </div>
+                  )}
+
+                  {/* Mini-tasks section */}
+                  {isTimerActive && activeEventId === todayEvents[0].id && (
+                    <div className="mt-4">
+                      <h4 className="text-sm font-semibold text-[var(--muted-foreground)] mb-2">Mini-tasks</h4>
+                      <div className="space-y-2">
+                        {miniTasks.map(task => (
+                          <div key={task.id} className="flex items-center gap-2 group/task">
+                            <Checkbox checked={task.completed} onChange={() => toggleMiniTask(task.id)} />
+                            <span className={`flex-1 text-sm ${task.completed ? "line-through text-[var(--muted-foreground)]" : ""}`}>
+                              {task.text}
+                            </span>
+                            <button
+                              onClick={() => deleteMiniTask(task.id)}
+                              className="opacity-0 group-hover/task:opacity-100 text-[var(--muted-foreground)] hover:text-red-500 transition"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newMiniTask}
+                            onChange={(e) => setNewMiniTask(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                addMiniTask();
+                              }
+                            }}
+                            placeholder="Add a quick task..."
+                            className="flex-1 text-sm bg-transparent focus:outline-none py-1 placeholder:text-[var(--muted-foreground)]/50"
+                          />
+                          <button
+                            onClick={addMiniTask}
+                            className="text-[var(--accent)] hover:text-[var(--accent)]/80 transition"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <Button className="shrink-0 transition-all group-hover:scale-105 group-hover:bg-[#a9c3a2] group-hover:text-[var(--foreground)] hover:!bg-[#D8F3DC]">
-                  <Play className="mr-2 h-4 w-4 fill-current" />
-                  Start
-                </Button>
+                {isTimerActive && activeEventId === todayEvents[0].id ? (
+                  <Button
+                    onClick={stopTimer}
+                    className="shrink-0 transition-all group-hover:scale-105 !bg-red-500 text-white hover:!bg-red-600"
+                  >
+                    <Square className="mr-2 h-4 w-4 fill-current" />
+                    Stop
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => startTimer(todayEvents[0])}
+                    className="shrink-0 transition-all group-hover:scale-105 group-hover:bg-[#a9c3a2] group-hover:text-[var(--foreground)] hover:!bg-[#D8F3DC]"
+                  >
+                    <Play className="mr-2 h-4 w-4 fill-current" />
+                    Start
+                  </Button>
+                )}
               </div>
             </Card>
-          ) : (
+            );
+          })() : (
             <Card className="p-8 text-center text-[var(--muted-foreground)]">
               <p>No events scheduled for today!</p>
             </Card>

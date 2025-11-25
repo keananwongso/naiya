@@ -90,6 +90,11 @@ const toBase44EventsForRange = (
       const end = new Date(day);
       end.setHours(eh ?? sh ?? 0, em ?? sm ?? 0, 0, 0);
 
+      // If end time is before start time, the event crosses midnight
+      if (end <= start) {
+        end.setDate(end.getDate() + 1);
+      }
+
       mapped.push({
         id: `${event.id}-${start.toISOString()}`,
         originalId: event.id,

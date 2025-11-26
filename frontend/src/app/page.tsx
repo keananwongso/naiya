@@ -744,6 +744,66 @@ export default function Home() {
         </section>
 
       </div>
+
+      {/* Loading Overlay */}
+      <AnimatePresence>
+        {isProcessing && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-[var(--card)] rounded-2xl p-8 shadow-2xl border border-[var(--border)] max-w-sm mx-4"
+            >
+              <div className="flex flex-col items-center gap-4">
+                {/* Animated Spinner */}
+                <div className="relative w-16 h-16">
+                  <div className="absolute inset-0 rounded-full border-4 border-[#D8F3DC] opacity-25"></div>
+                  <motion.div
+                    className="absolute inset-0 rounded-full border-4 border-[#97B59C] border-t-transparent"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  />
+                </div>
+
+                {/* Loading Text */}
+                <div className="text-center space-y-2">
+                  <h3 className="text-lg font-semibold text-[var(--foreground)]">
+                    Naiya is thinking...
+                  </h3>
+                  <p className="text-sm text-[var(--muted-foreground)]">
+                    Organizing your schedule
+                  </p>
+                </div>
+
+                {/* Animated Dots */}
+                <div className="flex gap-1">
+                  {[0, 1, 2].map((i) => (
+                    <motion.div
+                      key={i}
+                      className="w-2 h-2 bg-[#97B59C] rounded-full"
+                      animate={{
+                        y: [0, -8, 0],
+                        opacity: [0.5, 1, 0.5],
+                      }}
+                      transition={{
+                        duration: 0.8,
+                        repeat: Infinity,
+                        delay: i * 0.2,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

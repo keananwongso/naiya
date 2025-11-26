@@ -270,7 +270,8 @@ export function CalendarShell({
         flexibility: e.flexibility || (e.type === "COMMITMENT" ? "fixed" : "medium"),
       }));
 
-      const result = await processNaiya(backendEvents, message, conversationHistory);
+      // Pass the week start date as context so Naiya knows which week the user is viewing
+      const result = await processNaiya(backendEvents, message, conversationHistory, weekStartIso);
       setMessage(result.assistantMessage);
 
       if (result.events) {

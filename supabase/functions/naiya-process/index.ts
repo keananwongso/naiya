@@ -335,6 +335,9 @@ async function expandCalendar(actions: CalendarAction[], currentCalendar: Calend
             } else if (lowerTitle.includes("meeting")) {
                 newEvent.type = "COMMITMENT";
                 newEvent.source = "commitment";
+            } else if (lowerTitle.includes("work") || lowerTitle.includes("shift")) {
+                newEvent.type = "COMMITMENT";
+                newEvent.source = "work";
             }
 
             updatedCalendar.push(newEvent);
@@ -394,7 +397,13 @@ async function expandCalendar(actions: CalendarAction[], currentCalendar: Calend
     // Post-process to ensure commitments are fixed
     return updatedCalendar.map(e => {
         const lowerTitle = e.title.toLowerCase();
-        if (e.type === "COMMITMENT" || lowerTitle.includes("class") || lowerTitle.includes("lecture") || lowerTitle.includes("meeting")) {
+        if (
+            e.type === "COMMITMENT" ||
+            lowerTitle.includes("class") ||
+            lowerTitle.includes("lecture") ||
+            lowerTitle.includes("meeting") ||
+            lowerTitle.includes("work")
+        ) {
             return { ...e, flexibility: "fixed" };
         }
         return e;
@@ -460,9 +469,45 @@ CRITICAL RULES
    • You will receive conversation history if this is part of an ongoing chat.
    • Use the provided date context to resolve relative dates accurately.
 
+6. FREQUENCY & REPETITION (CRITICAL):
+   • If the user says "X times a week" (e.g., "gym 3 times"), you MUST generate EXACTLY X separate "add" actions.
+   • Do NOT generate fewer events than requested.
+   • Distribute them logically throughout the week (e.g., Mon, Wed, Fri) unless specific days are requested.
+   • If the user says "every day", generate 7 actions (one for each day).
+
+7. LIFE-BALANCE & WEEKLY PLANNING:
+   • When users describe their whole week, carefully listen to their specific needs and requests.
+   • ALWAYS prioritize the user's explicit requests over general guidelines.
+
+   • Work schedules:
+     – Treat as fixed commitments (flexibility "fixed").
+     – If user says "work 9–5", create events from 09:00–17:00.
+
+   • Deadlines:
+     – Add the deadline to the deadlines array.
+     – Schedule preparatory work blocks earlier in the week to ensure completion.
+     – Balance intensity to avoid burnout.
+
+   • Gym / exercise:
+     – Pay close attention to the EXACT number the user requests (e.g., "3 times" means 3 sessions, not 2).
+     – Typical duration: 45–90 minutes.
+     – Place outside work hours, commonly morning or evening.
+
+   • Social time / date nights:
+     – Honor the user's relationships and social needs.
+     – Schedule as medium/fixed flexibility depending on context.
+     – Keep evenings free when requested.
+
+   • Sleep / rest:
+     – Respect work-life boundaries.
+     – Avoid heavy scheduling after 22:00 unless user specifically requests it.
+     – Ensure some evenings are light or free.
+
 =========================
-EXAMPLES
+EXAMPLES (GUIDELINES ONLY)
 =========================
+These examples show the JSON structure. DO NOT copy the content. Your output must match the USER'S request, not these examples.
+
 User: "I have dinner with Sarah on Friday"
 Context: Today is Tuesday Nov 25, upcoming Friday is Nov 28
 Response:
@@ -494,6 +539,31 @@ Response:
   ],
   "deadlines": [],
   "assistantMessage": "I've canceled your family dinner for next Tuesday and added the meeting."
+}
+
+User: "Naiya, here's what I have in mind right now. work 9–5 monday to friday, proposals due Friday, supplier meeting Wednesday lunch, gym at least 3 times, and a date night with my partner."
+Context: Today is Monday 2025-11-24, upcoming Friday is 2025-11-28
+Response:
+{
+  "actions": [
+    {"type": "add", "title": "Work", "day": "Mon", "start": "09:00", "end": "17:00", "flexibility": "fixed"},
+    {"type": "add", "title": "Work", "day": "Tue", "start": "09:00", "end": "17:00", "flexibility": "fixed"},
+    {"type": "add", "title": "Work", "day": "Wed", "start": "09:00", "end": "17:00", "flexibility": "fixed"},
+    {"type": "add", "title": "Work", "day": "Thu", "start": "09:00", "end": "17:00", "flexibility": "fixed"},
+    {"type": "add", "title": "Work", "day": "Fri", "start": "09:00", "end": "17:00", "flexibility": "fixed"},
+    {"type": "add", "title": "Supplier meeting", "day": "Wed", "start": "12:00", "end": "13:00", "flexibility": "fixed"},
+    {"type": "add", "title": "Proposal work", "day": "Mon", "start": "18:00", "end": "20:00", "flexibility": "high"},
+    {"type": "add", "title": "Proposal work", "day": "Tue", "start": "18:00", "end": "20:00", "flexibility": "high"},
+    {"type": "add", "title": "Proposal work", "day": "Thu", "start": "18:00", "end": "19:30", "flexibility": "high"},
+    {"type": "add", "title": "Gym", "day": "Mon", "start": "07:00", "end": "08:00", "flexibility": "high"},
+    {"type": "add", "title": "Gym", "day": "Wed", "start": "18:00", "end": "19:00", "flexibility": "high"},
+    {"type": "add", "title": "Gym", "day": "Fri", "start": "18:00", "end": "19:00", "flexibility": "high"},
+    {"type": "add", "title": "Date night", "day": "Fri", "start": "19:30", "end": "21:30", "flexibility": "fixed"}
+  ],
+  "deadlines": [
+    {"title": "Proposals due", "date": "2025-11-28", "importance": "high"}
+  ],
+  "assistantMessage": "I've scheduled your work hours, the supplier meeting, three gym sessions throughout the week, proposal work blocks before Friday, and a date night on Friday evening."
 }
 
 Return ONLY the JSON object. No markdown. No explanations.`;

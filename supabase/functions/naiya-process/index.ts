@@ -501,14 +501,35 @@ CRITICAL RULES
 
    STEP 3: Count your actions against the user's requests to verify completeness
 
-7. DATE RESOLUTION (CRITICAL):
-   When user says "this Monday" or "Monday night" or just "Monday":
-   - Look at the UPCOMING WEEK section provided in context
-   - Find the NEXT occurrence of that day
-   - Extract the YYYY-MM-DD date for that day
-   - Use that specific date in the "date" field
+7. TEMPORAL CONTEXT & DATE RESOLUTION (CRITICAL):
 
-   Example: If user says "Monday night" and UPCOMING WEEK shows "Monday: 2025-11-24", use "date": "2025-11-24"
+   STEP 1: Identify temporal context in the user's message:
+
+   A) "NEXT WEEK" CONTEXT - If user says ANY of these:
+      • "I want to plan for next week"
+      • "Planning next week"
+      • "For next week"
+      • "Next week I have..."
+
+      Then ALL events mentioned should be scheduled for NEXT WEEK (7+ days from the currentDate).
+      Look at the UPCOMING WEEK section and ADD 7 DAYS to each date.
+
+      Example:
+      User: "I want to plan for next week. I have dinner Friday."
+      UPCOMING WEEK shows: Friday: 2025-11-28
+      NEXT week's Friday = 2025-11-28 + 7 days = 2025-12-05 ← USE THIS
+
+   B) "THIS WEEK" or NO TEMPORAL PHRASE:
+      Use dates directly from the UPCOMING WEEK section (no offset).
+
+   STEP 2: Resolve specific day references:
+   - Look at the UPCOMING WEEK section
+   - If "next week" context: add 7 days to the date shown
+   - If "this week" context: use the date as shown
+   - Extract the YYYY-MM-DD date
+   - Use it in the "date" field
+
+   CRITICAL: If user says "next week", EVERY event (Monday, Tuesday, Friday, etc.) must use next week's dates, not this week's dates!
 
 8. FREQUENCY & REPETITION (CRITICAL):
    • "X times a week" → Generate X recurring actions with different "day" values (e.g., Mon, Wed, Fri)
@@ -669,9 +690,9 @@ Response:
   "assistantMessage": "I've scheduled your work hours, the supplier meeting, three gym sessions throughout the week, proposal work blocks before Friday, and a date night on Friday evening."
 }
 
-User: "I'm planning for next week. I work 9 to 5, Monday to Friday. I want to go to the gym three times this week, I have a football game on monday night, I have dinner with my friend james on tuesday and I have a date night on Friday."
+User: "I want to plan for next week. I work 9 to 5, Monday to Friday. I go to the gym at least three times a week, I have a football game on monday night, I have dinner with my friend james on tuesday and I have a date night on Friday."
 Context: Today is Wednesday 2025-11-26
-UPCOMING WEEK:
+UPCOMING WEEK (starting from today):
 Wednesday: 2025-11-26
 Thursday: 2025-11-27
 Friday: 2025-11-28
@@ -690,13 +711,18 @@ Response:
     {"type": "add", "title": "Football game", "date": "2025-12-01", "start": "19:00", "end": "21:00", "flexibility": "fixed"},
     {"type": "add", "title": "Dinner with James", "date": "2025-12-02", "start": "18:00", "end": "19:30", "flexibility": "medium"},
     {"type": "add", "title": "Gym", "date": "2025-12-01", "start": "07:00", "end": "08:00", "flexibility": "high"},
-    {"type": "add", "title": "Gym", "date": "2025-11-26", "start": "18:00", "end": "19:00", "flexibility": "high"},
-    {"type": "add", "title": "Gym", "date": "2025-11-28", "start": "18:00", "end": "19:00", "flexibility": "high"},
-    {"type": "add", "title": "Date night", "date": "2025-11-28", "start": "19:30", "end": "21:30", "flexibility": "fixed"}
+    {"type": "add", "title": "Gym", "date": "2025-12-03", "start": "18:00", "end": "19:00", "flexibility": "high"},
+    {"type": "add", "title": "Gym", "date": "2025-12-05", "start": "18:00", "end": "19:00", "flexibility": "high"},
+    {"type": "add", "title": "Date night", "date": "2025-12-05", "start": "19:30", "end": "21:30", "flexibility": "fixed"}
   ],
   "deadlines": [],
-  "assistantMessage": "I've added your recurring work schedule (Mon-Fri 9-5), football game Monday night, dinner with James on Tuesday, three gym sessions this week (Monday morning, Wednesday and Friday evenings), and date night on Friday."
+  "assistantMessage": "I've added your recurring work schedule (Mon-Fri 9-5), and for next week: football game Monday night, dinner with James on Tuesday, three gym sessions (Monday, Wednesday, Friday), and date night on Friday."
 }
+
+EXPLANATION: User said "plan for NEXT WEEK" so ALL one-time events use NEXT week's dates:
+- Monday: 2025-12-01 (next week's Monday, not Nov 24)
+- Tuesday: 2025-12-02 (next week's Tuesday, not Nov 25)
+- Friday: 2025-12-05 (next week's Friday, NOT Nov 28 which is THIS week)
 
 =========================
 FINAL VERIFICATION BEFORE RETURNING

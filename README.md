@@ -97,6 +97,79 @@ Naiya3/
 4. **Voice Input**: Record audio to quickly add events without typing
 5. **Smart Updates**: The AI re-balances your schedule when you make changes, respecting your constraints
 
+## Architecture Overview
+
+### The Pipeline
+
+```
+User Input → Frontend → API → Supabase Edge Function → GPT-5.1 → Response Processing → Calendar Update
+```
+
+### How Naiya Understands You
+
+**Natural Language Processing**
+- Naiya uses GPT-5.1 to understand your requests in plain English
+- Distinguishes between recurring events ("I work 9-5 Monday to Friday") and one-time events ("I have dinner Friday")
+- Understands temporal context like "next week" or "this week"
+
+**Smart Scheduling**
+- **Recurring Events**: Work schedules, weekly routines → repeat every week
+- **One-Time Events**: Appointments, social plans → specific dates
+- **Conflict Prevention**: Reviews your schedule before adding events to avoid overlaps
+- **Flexible Rescheduling**: Automatically moves flexible events around fixed commitments
+
+**Context Awareness**
+- Knows what week you're viewing in the calendar
+- Uses date context to schedule events correctly
+- Remembers conversation history for follow-up requests
+
+### Key Features
+
+**Multi-Request Handling**
+Parse complex messages: "I work 9-5 Mon-Fri, gym 3x/week, dinner Tuesday, game Monday"
+- Breaks down into individual tasks
+- Ensures every item is addressed
+- Verifies nothing is missed
+
+**Temporal Intelligence**
+- "Next week" → All events scheduled for the following week
+- "This Friday" → Uses the upcoming Friday date
+- "Every Monday" → Creates recurring pattern
+
+**Conflict Resolution**
+- **Proactive**: Checks schedule before adding events
+- **Smart**: Suggests alternative times/days
+- **Communicative**: Explains what was moved and why
+- **Flexible**: Fixed events never move, flexible events adjust
+
+**Ambiguity Handling**
+- Makes reasonable guesses when info is unclear
+- Communicates assumptions to the user
+- Asks for clarification or confirmation
+
+### Data Flow Example
+
+**You say**: "I want to plan for next week. I work 9-5 Mon-Fri, gym 3x, dinner Tuesday, date night Friday."
+
+**Naiya processes**:
+1. Detects "next week" → schedules for upcoming week
+2. Recognizes "work 9-5 Mon-Fri" → recurring pattern (every week)
+3. Creates specific events for next week: dinner Tuesday, date night Friday
+4. Schedules 3 gym sessions distributed across the week
+5. Checks for conflicts and adjusts as needed
+
+**You get**: Updated calendar with all events correctly placed, plus a confirmation message
+
+### Under the Hood
+
+- **Frontend**: React + Next.js for smooth user experience
+- **Backend**: Supabase Edge Functions for serverless processing
+- **AI**: OpenAI GPT-5.1 for natural language understanding
+- **Storage**: Supabase PostgreSQL for calendar and user data
+- **Real-time**: Instant updates across all devices
+
+For detailed technical documentation, see [CURRENT_ARCHITECTURE.md](./CURRENT_ARCHITECTURE.md)
+
 ## License
 
 Private

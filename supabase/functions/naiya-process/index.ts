@@ -542,14 +542,14 @@ serve(async (req) => {
             return `${timeInfo}: ${e.title}${flexInfo}`;
         }).join("\n") || "No events scheduled";
 
-        // Build messages array with improved context
-        const messages: any[] = [
-            { role: "system", content: EXTRACTION_PROMPT }
+        // Build input array for Responses API (uses "developer" role instead of "system")
+        const input: any[] = [
+            { role: "developer", content: EXTRACTION_PROMPT }
         ];
 
         // Add conversation history if available (preserves multi-turn context)
         if (conversationHistory && conversationHistory.length > 0) {
-            messages.push(...conversationHistory);
+            input.push(...conversationHistory);
         }
 
         // Create comprehensive context message
@@ -566,18 +566,12 @@ ${currentSchedule}
 
 Please process the user's request and return the appropriate actions.`;
 
-        messages.push({
+        input.push({
             role: "user",
             content: contextMessage
         });
 
-        // Convert messages to single string input for Responses API
-        const promptInput = messages.map(m => {
-            const role = m.role === "system" ? "SYSTEM" : m.role === "user" ? "USER" : "ASSISTANT";
-            return `[${role}]\n${m.content}`;
-        }).join("\n\n");
-
-        // Call OpenAI Responses API (GPT-5.1)
+        // Call OpenAI Responses API (GPT-5.1) - uses "input" parameter, not "messages"
         const openaiResponse = await fetch('https://api.openai.com/v1/responses', {
             method: 'POST',
             headers: {
@@ -586,7 +580,7 @@ Please process the user's request and return the appropriate actions.`;
             },
             body: JSON.stringify({
                 model: 'gpt-5.1',
-                input: promptInput,
+                input,
             }),
         })
 
@@ -596,7 +590,25 @@ Please process the user's request and return the appropriate actions.`;
         }
 
         const openaiData = await openaiResponse.json()
-        const rawContent = openaiData.output_text;
+
+        // Extract text from Responses API output structure:
+        // output[0].content[0].text
+        let rawContent = "";
+        if (Array.isArray(openaiData.output) && openaiData.output.length > 0) {
+            const message = openaiData.output[0];
+            if (message.content && Array.isArray(message.content) && message.content.length > 0) {
+                const contentItem = message.content[0];
+                if (contentItem.text) {
+                    rawContent = contentItem.text;
+                }
+            }
+        }
+
+        if (!rawContent) {
+            console.error("Failed to extract text from OpenAI response:", JSON.stringify(openaiData));
+            throw new Error("No text content found in OpenAI response");
+        }
+
         const cleanContent = rawContent.replace(/```json\n?|```/g, "").trim();
 
         // Parse and validate LLM response

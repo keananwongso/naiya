@@ -14,6 +14,10 @@ serve(async (req) => {
         const formData = await req.formData()
         const audioFile = formData.get('audio')
 
+        console.log('Received audio file:', audioFile ? 'Yes' : 'No')
+        console.log('Audio file type:', audioFile instanceof File ? audioFile.type : 'Not a File')
+        console.log('Audio file size:', audioFile instanceof File ? audioFile.size : 'N/A')
+
         if (!audioFile || !(audioFile instanceof File)) {
             return new Response(
                 JSON.stringify({ error: 'No audio file provided' }),
@@ -32,6 +36,8 @@ serve(async (req) => {
         whisperFormData.append('file', audioFile)
         whisperFormData.append('model', 'whisper-1')
 
+        console.log('Calling Whisper API...')
+
         // Call OpenAI Whisper API
         const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
             method: 'POST',
@@ -41,8 +47,11 @@ serve(async (req) => {
             body: whisperFormData,
         })
 
+        console.log('Whisper API response status:', response.status)
+
         if (!response.ok) {
             const error = await response.text()
+            console.error('Whisper API error response:', error)
             throw new Error(`Whisper API error: ${error}`)
         }
 

@@ -207,8 +207,7 @@ export function ChatPanelWithSessions({
       const formData = new FormData();
       formData.append("audio", audioBlob, "recording.webm");
 
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
-      const response = await fetch(`${backendUrl}/brain-dump/audio`, {
+      const response = await fetch(`/api/brain-dump/audio`, {
         method: "POST",
         body: formData,
       });

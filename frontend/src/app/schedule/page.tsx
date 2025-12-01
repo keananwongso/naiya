@@ -13,6 +13,7 @@ import { loadCalendar } from "@/lib/calendar-db";
 import { loadDeadlines, toggleDeadlineComplete, deleteDeadline, Deadline } from "@/lib/deadline-db";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { Menu, X, MessageSquare } from "lucide-react";
 
 // Force rebuild
 export default function SchedulePage() {
@@ -22,6 +23,10 @@ export default function SchedulePage() {
   const [tags, setTags] = useState<Tag[]>([]);
   const [assistantMessage, setAssistantMessage] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Mobile sidebar state
+  const [showLeftSidebar, setShowLeftSidebar] = useState(false);
+  const [showChatPanel, setShowChatPanel] = useState(false);
 
   // Ref to access CalendarShell's handleCalendarUpdate
   const calendarUpdateRef = useRef<((message: string, conversationHistory?: Array<{ role: 'user' | 'assistant', content: string }>) => Promise<void>) | null>(null);
@@ -141,48 +146,88 @@ export default function SchedulePage() {
   };
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-[var(--background)]">
-      {/* Left Sidebar Column */}
-      <div className="flex w-[280px] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--surface)]">
-        <div className="border-b border-[var(--border)]">
-          <MiniCalendar />
-        </div>
-        <div className="flex-1 overflow-hidden border-b border-[var(--border)]">
-          <TodoList
-            deadlines={deadlines}
-            onToggleComplete={handleToggleDeadline}
-            onDelete={handleDeleteDeadline}
-          />
-        </div>
-        <div className="flex-1 overflow-hidden bg-[var(--surface)]">
-          <TagsManager
-            tags={tags}
-            onAddTag={handleAddTag}
-            onUpdateTag={handleUpdateTag}
-            onDeleteTag={handleDeleteTag}
-          />
-        </div>
+    <div className="flex h-full w-full flex-col overflow-hidden bg-[var(--background)]">
+      {/* Mobile Menu Bar - Hidden on Desktop */}
+      <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-4 py-2 md:hidden">
+        <button
+          onClick={() => setShowLeftSidebar(!showLeftSidebar)}
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--accent-soft)]"
+        >
+          {showLeftSidebar ? <X size={20} /> : <Menu size={20} />}
+          <span>Menu</span>
+        </button>
+        <button
+          onClick={() => setShowChatPanel(!showChatPanel)}
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--accent-soft)]"
+        >
+          <MessageSquare size={20} />
+          <span>Chat</span>
+        </button>
       </div>
 
-      {/* Main Calendar Column */}
-      <main className="flex-1 min-w-0 bg-[var(--surface)]">
-        <CalendarShell
-          events={events}
-          setEvents={setEvents}
-          tags={tags}
-          onCalendarUpdateRef={calendarUpdateRef}
-          setAssistantMessage={setAssistantMessage}
-          setIsProcessing={setIsProcessing}
-        />
-      </main>
+      {/* Main Content - Flex Row on Desktop, Column on Mobile */}
+      <div className="flex flex-1 overflow-hidden md:flex-row">
+        {/* Left Sidebar Column - Full width on mobile when open, fixed 280px on desktop */}
+        <div className={`
+          ${showLeftSidebar ? 'flex' : 'hidden'}
+          md:flex
+          w-full md:w-[280px]
+          shrink-0
+          flex-col
+          border-r border-[var(--border)]
+          bg-[var(--surface)]
+          absolute md:relative
+          z-20 md:z-auto
+          h-full
+        `}>
+          <div className="border-b border-[var(--border)]">
+            <MiniCalendar />
+          </div>
+          <div className="flex-1 overflow-hidden border-b border-[var(--border)]">
+            <TodoList
+              deadlines={deadlines}
+              onToggleComplete={handleToggleDeadline}
+              onDelete={handleDeleteDeadline}
+            />
+          </div>
+          <div className="flex-1 overflow-hidden bg-[var(--surface)]">
+            <TagsManager
+              tags={tags}
+              onAddTag={handleAddTag}
+              onUpdateTag={handleUpdateTag}
+              onDeleteTag={handleDeleteTag}
+            />
+          </div>
+        </div>
 
-      {/* Right Chat Column */}
-      <div className="w-[400px] shrink-0">
-        <ChatPanelWithSessions
-          onSubmit={handleChatSubmit}
-          assistantMessage={assistantMessage}
-          isProcessing={isProcessing}
-        />
+        {/* Main Calendar Column */}
+        <main className="flex-1 min-w-0 bg-[var(--surface)]">
+          <CalendarShell
+            events={events}
+            setEvents={setEvents}
+            tags={tags}
+            onCalendarUpdateRef={calendarUpdateRef}
+            setAssistantMessage={setAssistantMessage}
+            setIsProcessing={setIsProcessing}
+          />
+        </main>
+
+        {/* Right Chat Column - Full width on mobile when open, fixed 400px on desktop */}
+        <div className={`
+          ${showChatPanel ? 'flex' : 'hidden'}
+          md:flex
+          w-full md:w-[400px]
+          shrink-0
+          absolute md:relative
+          z-20 md:z-auto
+          h-full
+        `}>
+          <ChatPanelWithSessions
+            onSubmit={handleChatSubmit}
+            assistantMessage={assistantMessage}
+            isProcessing={isProcessing}
+          />
+        </div>
       </div>
     </div>
   );

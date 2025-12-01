@@ -133,7 +133,7 @@ export function DraggableEvent({ event, top, height, onClick, onResizeEnd }: Pro
   const style: React.CSSProperties = {
     top: `${(currentTop / 60) * 100}%`,
     height: `${(currentHeight / 60) * 100}%`,
-    minHeight: "24px",
+    minHeight: "24px", // Will be overridden by Tailwind min-h on mobile
     zIndex: isDragging || isResizing ? 50 : 10,
     transform: CSS.Translate.toString(transform),
     position: "absolute",
@@ -150,14 +150,14 @@ export function DraggableEvent({ event, top, height, onClick, onResizeEnd }: Pro
       {...listeners}
       {...attributes}
       onClick={onClick}
-      className={`rounded-lg px-2 py-1 text-[10px] font-medium text-[var(--foreground)] border cursor-grab active:cursor-grabbing transition-colors overflow-hidden shadow-sm touch-none hover:brightness-95 group`}
+      className={`rounded-lg px-2 md:px-2 py-2 md:py-1 text-[10px] md:text-[10px] font-medium text-[var(--foreground)] border cursor-grab active:cursor-grabbing transition-colors overflow-hidden shadow-sm touch-none hover:brightness-95 group min-h-[44px] md:min-h-[24px]`}
     >
-      {/* Top Resize Handle */}
+      {/* Top Resize Handle - Larger on mobile for better touch targets */}
       <div
-        className="absolute top-0 left-0 right-0 h-3 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity z-20 flex items-start justify-center pt-0.5"
+        className="absolute top-0 left-0 right-0 h-6 md:h-3 cursor-ns-resize opacity-0 group-hover:opacity-100 md:group-hover:opacity-100 transition-opacity z-20 flex items-start justify-center pt-1 md:pt-0.5"
         onPointerDown={(e) => handleResizeStart(e, "top")}
       >
-        <div className="w-4 h-1 bg-[var(--foreground)]/20 rounded-full" />
+        <div className="w-6 h-1.5 md:w-4 md:h-1 bg-[var(--foreground)]/20 rounded-full" />
       </div>
 
       <p className="truncate font-semibold leading-tight pointer-events-none mt-1">{event.title}</p>
@@ -166,12 +166,12 @@ export function DraggableEvent({ event, top, height, onClick, onResizeEnd }: Pro
         {event.end_date && ` – ${format(parseISO(event.end_date), "h:mm a")}`}
       </p>
 
-      {/* Bottom Resize Handle */}
+      {/* Bottom Resize Handle - Larger on mobile for better touch targets */}
       <div
-        className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity z-20"
+        className="absolute bottom-0 left-0 right-0 h-6 md:h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 md:group-hover:opacity-100 transition-opacity z-20 flex items-end justify-center pb-1 md:pb-0"
         onPointerDown={(e) => handleResizeStart(e, "bottom")}
       >
-        <div className="mx-auto w-4 h-1 bg-[var(--foreground)]/20 rounded-full mt-0.5" />
+        <div className="w-6 h-1.5 md:w-4 md:h-1 bg-[var(--foreground)]/20 rounded-full" />
       </div>
     </div>
   );

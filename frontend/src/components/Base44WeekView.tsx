@@ -20,11 +20,11 @@ import {
   isSameDay,
   formatISO,
 } from "date-fns";
-import { Clock, Trash2 } from "lucide-react";
+import { Clock, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { DraggableEvent } from "./DraggableEvent";
 import { RecurringEditModal } from "./RecurringEditModal";
 import { useState, useEffect } from "react";
-import { addHours } from "date-fns";
+import { addHours, addDays, subDays } from "date-fns";
 import { getCurrentTimeInMinutes } from "@/lib/dateUtils";
 
 // Reuse type definition
@@ -116,6 +116,11 @@ export function Base44WeekView({
   } | null>(null);
   const [currentTimeMinutes, setCurrentTimeMinutes] = useState(getCurrentTimeInMinutes());
   const [isDragging, setIsDragging] = useState(false);
+
+  // Mobile: track which single day to show
+  const [mobileSelectedDay, setMobileSelectedDay] = useState<Date>(
+    days.find(d => isToday(d)) || days[0]
+  );
 
   // Update current time every minute
   useEffect(() => {
@@ -283,8 +288,44 @@ export function Base44WeekView({
     return getMinutes(start);
   };
 
+  // On mobile, show only selected day; on desktop show all 7 days
+  const visibleDays = days; // Desktop always shows all days
+  const mobileDayToShow = [mobileSelectedDay]; // Mobile shows only selected day
+
+  const handlePrevDay = () => {
+    setMobileSelectedDay(prev => subDays(prev, 1));
+  };
+
+  const handleNextDay = () => {
+    setMobileSelectedDay(prev => addDays(prev, 1));
+  };
+
   return (
     <div className="flex flex-col h-full bg-[var(--surface)] relative">
+      {/* Mobile Day Navigation - Hidden on Desktop */}
+      <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3 md:hidden">
+        <button
+          onClick={handlePrevDay}
+          className="rounded-lg p-2 hover:bg-[var(--accent-soft)] transition-colors"
+        >
+          <ChevronLeft size={20} className="text-[var(--foreground)]" />
+        </button>
+        <div className="text-center">
+          <div className="text-xs font-medium text-[var(--muted)] uppercase tracking-[0.16em]">
+            {format(mobileSelectedDay, "EEEE")}
+          </div>
+          <div className="text-lg font-medium text-[var(--foreground)]">
+            {format(mobileSelectedDay, "MMMM d, yyyy")}
+          </div>
+        </div>
+        <button
+          onClick={handleNextDay}
+          className="rounded-lg p-2 hover:bg-[var(--accent-soft)] transition-colors"
+        >
+          <ChevronRight size={20} className="text-[var(--foreground)]" />
+        </button>
+      </div>
+
       <DndContext
         sensors={sensors}
         onDragStart={() => setIsDragging(true)}
@@ -296,16 +337,42 @@ export function Base44WeekView({
       >
         <TrashBin isDragging={isDragging} />
         <div className="flex-1 overflow-auto overscroll-contain relative">
-          <div className="sticky top-0 z-20 grid grid-cols-[60px_repeat(7,1fr)] border-b border-[var(--border)] bg-[var(--surface)]">
+          {/* Header: 1 column on mobile, 7 on desktop */}
+          <div className="sticky top-0 z-20 grid grid-cols-[60px_1fr] md:grid-cols-[60px_repeat(7,1fr)] border-b border-[var(--border)] bg-[var(--surface)]">
             <div className="p-4 border-r border-[var(--border)] flex items-center justify-center">
               <Clock className="h-4 w-4 text-[var(--muted)]/70" />
             </div>
-            {days.map((day) => {
+            {/* Mobile: Show only selected day */}
+            <div className="md:hidden">
+              {mobileDayToShow.map((day) => {
+                const isDayToday = isToday(day);
+                return (
+                  <div
+                    key={day.toISOString()}
+                    className="p-4 text-center"
+                  >
+                    <div className="text-xs font-medium text-[var(--muted)] uppercase mb-1 tracking-[0.16em]">
+                      {format(day, "EEE")}
+                    </div>
+                    <div
+                      className={`text-2xl font-light inline-flex items-center justify-center w-10 h-10 rounded-full transition-all ${isDayToday
+                        ? "bg-[var(--foreground)] text-[var(--background)]"
+                        : "text-[var(--foreground)]"
+                        }`}
+                    >
+                      {format(day, "d")}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Desktop: Show all 7 days */}
+            {visibleDays.map((day) => {
               const isDayToday = isToday(day);
               return (
                 <div
                   key={day.toISOString()}
-                  className="p-4 text-center border-r border-[var(--border)] last:border-r-0"
+                  className="hidden md:block p-4 text-center border-r border-[var(--border)] last:border-r-0"
                 >
                   <div className="text-xs font-medium text-[var(--muted)] uppercase mb-1 tracking-[0.16em]">
                     {format(day, "EEE")}
@@ -326,21 +393,50 @@ export function Base44WeekView({
           {HOURS.map((hour) => (
             <div
               key={hour}
-              className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-[var(--border)] last:border-b-0"
+              className="grid grid-cols-[60px_1fr] md:grid-cols-[60px_repeat(7,1fr)] border-b border-[var(--border)] last:border-b-0"
             >
               <div className="p-2 border-r border-[var(--border)] text-[10px] text-[var(--muted)] font-medium h-12 flex items-center justify-center">
                 {format(new Date().setHours(hour, 0, 0, 0), "h a")}
               </div>
 
-              {days.map((day) => {
+              {/* Mobile: Show only selected day */}
+              <div className="md:hidden">
+                {mobileDayToShow.map((day) => {
+                  const hourEvents = getEventsForDayAndHour(day, hour);
+                  const cellId = `cell|${format(day, "yyyy-MM-dd'T'HH:mm:ssXXX")}|${hour}`;
+
+                  return (
+                    <DroppableCell
+                      key={`${day.toISOString()}-${hour}`}
+                      id={cellId}
+                      className="relative h-12 hover:bg-[var(--background)] transition-colors"
+                      onDoubleClick={() => handleCellDoubleClick(day, hour)}
+                    >
+                      {hourEvents.map((event) => (
+                        <DraggableEvent
+                          key={event.id}
+                          event={event}
+                          top={getEventTop(event)}
+                          height={getEventHeight(event)}
+                          onClick={() => onEventClick?.(event)}
+                          onResizeEnd={(topDelta, heightDelta) => handleResizeEnd(event, topDelta, heightDelta)}
+                        />
+                      ))}
+                    </DroppableCell>
+                  );
+                })}
+              </div>
+
+              {/* Desktop: Show all 7 days */}
+              {visibleDays.map((day) => {
                 const hourEvents = getEventsForDayAndHour(day, hour);
-    const cellId = `cell|${format(day, "yyyy-MM-dd'T'HH:mm:ssXXX")}|${hour}`;
+                const cellId = `cell|${format(day, "yyyy-MM-dd'T'HH:mm:ssXXX")}|${hour}`;
 
                 return (
                   <DroppableCell
                     key={`${day.toISOString()}-${hour}`}
                     id={cellId}
-                    className="relative border-r border-[var(--border)] last:border-r-0 h-12 hover:bg-[var(--background)] transition-colors"
+                    className="hidden md:block relative border-r border-[var(--border)] last:border-r-0 h-12 hover:bg-[var(--background)] transition-colors"
                     onDoubleClick={() => handleCellDoubleClick(day, hour)}
                   >
                     {hourEvents.map((event) => (
@@ -359,15 +455,30 @@ export function Base44WeekView({
             </div>
           ))}
 
-          {/* Current time indicator - red line spanning across all days */}
+          {/* Current time indicator - red line */}
+          {/* Desktop: show when any day is today */}
           {days.some(day => isToday(day)) && (
             <div
-              className="absolute left-[60px] right-0 z-30 pointer-events-none"
+              className="hidden md:block absolute left-[60px] right-0 z-30 pointer-events-none"
               style={{
                 // Each hour row is 48px tall (h-12 = 48px)
                 // Current time in minutes / 60 = hours from midnight
                 // Multiply by 48 to get pixels from top of grid (which starts at midnight/12 AM)
                 // The sticky header height needs to be accounted for
+                top: `calc(${(currentTimeMinutes / 60) * 48}px + 93px)`,
+              }}
+            >
+              <div className="relative h-0.5 bg-red-500">
+                <div className="absolute -left-1.5 -top-1 h-3 w-3 rounded-full bg-red-500" />
+              </div>
+            </div>
+          )}
+          {/* Mobile: show only when selected day is today */}
+          {isToday(mobileSelectedDay) && (
+            <div
+              className="md:hidden absolute left-[60px] right-0 z-30 pointer-events-none"
+              style={{
+                // Mobile has extra header (day navigation) so adjust offset
                 top: `calc(${(currentTimeMinutes / 60) * 48}px + 93px)`,
               }}
             >

@@ -18,12 +18,12 @@ export function Base44CalendarHeader({
   };
 
   return (
-    <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)] bg-[var(--surface)] shrink-0">
+    <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-[var(--border)] bg-[var(--surface)] shrink-0">
       <motion.h1
         key={getTitle()}
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-3xl font-light tracking-tight text-[var(--foreground)]"
+        className="text-xl md:text-3xl font-light tracking-tight text-[var(--foreground)]"
       >
         {getTitle()}
       </motion.h1>

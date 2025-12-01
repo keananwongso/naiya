@@ -117,10 +117,16 @@ export function Base44WeekView({
   const [currentTimeMinutes, setCurrentTimeMinutes] = useState(getCurrentTimeInMinutes());
   const [isDragging, setIsDragging] = useState(false);
 
-  // Mobile: track which single day to show
-  const [mobileSelectedDay, setMobileSelectedDay] = useState<Date>(
-    days.find(d => isToday(d)) || days[0]
-  );
+  // Mobile: track the start day for 3-day view
+  const [mobileStartDay, setMobileStartDay] = useState<Date>(() => {
+    const today = days.find(d => isToday(d));
+    // Start from today if it exists, otherwise from the first day
+    return today || days[0];
+  });
+
+  // Swipe gesture state
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
   // Update current time every minute
   useEffect(() => {
@@ -288,43 +294,51 @@ export function Base44WeekView({
     return getMinutes(start);
   };
 
-  // On mobile, show only selected day; on desktop show all 7 days
+  // On mobile, show 3 days starting from mobileStartDay; on desktop show all 7 days
   const visibleDays = days; // Desktop always shows all days
-  const mobileDayToShow = [mobileSelectedDay]; // Mobile shows only selected day
+  const mobile3Days = [
+    mobileStartDay,
+    addDays(mobileStartDay, 1),
+    addDays(mobileStartDay, 2),
+  ]; // Mobile shows 3 days
 
-  const handlePrevDay = () => {
-    setMobileSelectedDay(prev => subDays(prev, 1));
+  const handlePrevDays = () => {
+    setMobileStartDay(prev => subDays(prev, 3)); // Jump back 3 days
   };
 
-  const handleNextDay = () => {
-    setMobileSelectedDay(prev => addDays(prev, 1));
+  const handleNextDays = () => {
+    setMobileStartDay(prev => addDays(prev, 3)); // Jump forward 3 days
+  };
+
+  // Swipe gesture detection (minimum 50px swipe)
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      handleNextDays(); // Swipe left = go forward in time
+    } else if (isRightSwipe) {
+      handlePrevDays(); // Swipe right = go back in time
+    }
   };
 
   return (
     <div className="flex flex-col h-full bg-[var(--surface)] relative">
-      {/* Mobile Day Navigation - Hidden on Desktop */}
-      <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3 md:hidden">
-        <button
-          onClick={handlePrevDay}
-          className="rounded-lg p-2 hover:bg-[var(--accent-soft)] transition-colors"
-        >
-          <ChevronLeft size={20} className="text-[var(--foreground)]" />
-        </button>
-        <div className="text-center">
-          <div className="text-xs font-medium text-[var(--muted)] uppercase tracking-[0.16em]">
-            {format(mobileSelectedDay, "EEEE")}
-          </div>
-          <div className="text-lg font-medium text-[var(--foreground)]">
-            {format(mobileSelectedDay, "MMMM d, yyyy")}
-          </div>
-        </div>
-        <button
-          onClick={handleNextDay}
-          className="rounded-lg p-2 hover:bg-[var(--accent-soft)] transition-colors"
-        >
-          <ChevronRight size={20} className="text-[var(--foreground)]" />
-        </button>
-      </div>
+      {/* Mobile: No separate day navigation bar - swipe to navigate */}
 
       <DndContext
         sensors={sensors}
@@ -336,36 +350,39 @@ export function Base44WeekView({
         onDragCancel={() => setIsDragging(false)}
       >
         <TrashBin isDragging={isDragging} />
-        <div className="flex-1 overflow-auto overscroll-contain relative">
-          {/* Header: 1 column on mobile, 7 on desktop */}
-          <div className="sticky top-0 z-20 grid grid-cols-[60px_1fr] md:grid-cols-[60px_repeat(7,1fr)] border-b border-[var(--border)] bg-[var(--surface)]">
-            <div className="p-4 border-r border-[var(--border)] flex items-center justify-center">
+        <div
+          className="flex-1 overflow-auto overscroll-contain relative"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
+          {/* Header: 3 columns on mobile, 7 on desktop */}
+          <div className="sticky top-0 z-20 grid grid-cols-[60px_repeat(3,1fr)] md:grid-cols-[60px_repeat(7,1fr)] border-b border-[var(--border)] bg-[var(--surface)]">
+            <div className="p-3 md:p-4 border-r border-[var(--border)] flex items-center justify-center">
               <Clock className="h-4 w-4 text-[var(--muted)]/70" />
             </div>
-            {/* Mobile: Show only selected day */}
-            <div className="md:hidden">
-              {mobileDayToShow.map((day) => {
-                const isDayToday = isToday(day);
-                return (
-                  <div
-                    key={day.toISOString()}
-                    className="p-4 text-center"
-                  >
-                    <div className="text-xs font-medium text-[var(--muted)] uppercase mb-1 tracking-[0.16em]">
-                      {format(day, "EEE")}
-                    </div>
-                    <div
-                      className={`text-2xl font-light inline-flex items-center justify-center w-10 h-10 rounded-full transition-all ${isDayToday
-                        ? "bg-[var(--foreground)] text-[var(--background)]"
-                        : "text-[var(--foreground)]"
-                        }`}
-                    >
-                      {format(day, "d")}
-                    </div>
+            {/* Mobile: Show 3 days */}
+            {mobile3Days.map((day) => {
+              const isDayToday = isToday(day);
+              return (
+                <div
+                  key={day.toISOString()}
+                  className="md:hidden p-2 text-center border-r border-[var(--border)] last:border-r-0"
+                >
+                  <div className="text-[10px] font-medium text-[var(--muted)] uppercase tracking-wider">
+                    {format(day, "EEE")}
                   </div>
-                );
-              })}
-            </div>
+                  <div
+                    className={`text-lg font-light inline-flex items-center justify-center w-7 h-7 rounded-full transition-all ${isDayToday
+                      ? "bg-[var(--foreground)] text-[var(--background)]"
+                      : "text-[var(--foreground)]"
+                      }`}
+                  >
+                    {format(day, "d")}
+                  </div>
+                </div>
+              );
+            })}
             {/* Desktop: Show all 7 days */}
             {visibleDays.map((day) => {
               const isDayToday = isToday(day);
@@ -393,39 +410,37 @@ export function Base44WeekView({
           {HOURS.map((hour) => (
             <div
               key={hour}
-              className="grid grid-cols-[60px_1fr] md:grid-cols-[60px_repeat(7,1fr)] border-b border-[var(--border)] last:border-b-0"
+              className="grid grid-cols-[60px_repeat(3,1fr)] md:grid-cols-[60px_repeat(7,1fr)] border-b border-[var(--border)] last:border-b-0"
             >
               <div className="p-2 border-r border-[var(--border)] text-[10px] text-[var(--muted)] font-medium h-12 flex items-center justify-center">
                 {format(new Date().setHours(hour, 0, 0, 0), "h a")}
               </div>
 
-              {/* Mobile: Show only selected day */}
-              <div className="md:hidden">
-                {mobileDayToShow.map((day) => {
-                  const hourEvents = getEventsForDayAndHour(day, hour);
-                  const cellId = `cell|${format(day, "yyyy-MM-dd'T'HH:mm:ssXXX")}|${hour}`;
+              {/* Mobile: Show 3 days */}
+              {mobile3Days.map((day) => {
+                const hourEvents = getEventsForDayAndHour(day, hour);
+                const cellId = `cell|${format(day, "yyyy-MM-dd'T'HH:mm:ssXXX")}|${hour}`;
 
-                  return (
-                    <DroppableCell
-                      key={`${day.toISOString()}-${hour}`}
-                      id={cellId}
-                      className="relative h-12 hover:bg-[var(--background)] transition-colors"
-                      onDoubleClick={() => handleCellDoubleClick(day, hour)}
-                    >
-                      {hourEvents.map((event) => (
-                        <DraggableEvent
-                          key={event.id}
-                          event={event}
-                          top={getEventTop(event)}
-                          height={getEventHeight(event)}
-                          onClick={() => onEventClick?.(event)}
-                          onResizeEnd={(topDelta, heightDelta) => handleResizeEnd(event, topDelta, heightDelta)}
-                        />
-                      ))}
-                    </DroppableCell>
-                  );
-                })}
-              </div>
+                return (
+                  <DroppableCell
+                    key={`${day.toISOString()}-${hour}`}
+                    id={cellId}
+                    className="md:hidden relative border-r border-[var(--border)] last:border-r-0 h-12 hover:bg-[var(--background)] transition-colors"
+                    onDoubleClick={() => handleCellDoubleClick(day, hour)}
+                  >
+                    {hourEvents.map((event) => (
+                      <DraggableEvent
+                        key={event.id}
+                        event={event}
+                        top={getEventTop(event)}
+                        height={getEventHeight(event)}
+                        onClick={() => onEventClick?.(event)}
+                        onResizeEnd={(topDelta, heightDelta) => handleResizeEnd(event, topDelta, heightDelta)}
+                      />
+                    ))}
+                  </DroppableCell>
+                );
+              })}
 
               {/* Desktop: Show all 7 days */}
               {visibleDays.map((day) => {
@@ -473,12 +488,11 @@ export function Base44WeekView({
               </div>
             </div>
           )}
-          {/* Mobile: show only when selected day is today */}
-          {isToday(mobileSelectedDay) && (
+          {/* Mobile: show when any of the 3 visible days is today */}
+          {mobile3Days.some(day => isToday(day)) && (
             <div
               className="md:hidden absolute left-[60px] right-0 z-30 pointer-events-none"
               style={{
-                // Mobile has extra header (day navigation) so adjust offset
                 top: `calc(${(currentTimeMinutes / 60) * 48}px + 93px)`,
               }}
             >

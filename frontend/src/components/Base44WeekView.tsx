@@ -26,6 +26,7 @@ import { RecurringEditModal } from "./RecurringEditModal";
 import { useState, useEffect } from "react";
 import { addHours, addDays, subDays } from "date-fns";
 import { getCurrentTimeInMinutes } from "@/lib/dateUtils";
+import { motion, AnimatePresence } from "framer-motion";
 
 // Reuse type definition
 type Base44Event = {
@@ -127,6 +128,7 @@ export function Base44WeekView({
   // Swipe gesture state
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
 
   // Update current time every minute
   useEffect(() => {
@@ -152,7 +154,8 @@ export function Base44WeekView({
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        delay: 250, // Hold for 250ms before drag starts
+        tolerance: 5, // Allow 5px movement during hold
       },
     })
   );
@@ -330,10 +333,28 @@ export function Base44WeekView({
     const isRightSwipe = distance < -minSwipeDistance;
 
     if (isLeftSwipe) {
+      setSwipeDirection('left');
       handleNextDays(); // Swipe left = go forward in time
     } else if (isRightSwipe) {
+      setSwipeDirection('right');
       handlePrevDays(); // Swipe right = go back in time
     }
+  };
+
+  // Animation variants for swipe transitions
+  const slideVariants = {
+    enter: (direction: 'left' | 'right' | null) => ({
+      x: direction === 'left' ? 300 : direction === 'right' ? -300 : 0,
+      opacity: 0,
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+    },
+    exit: (direction: 'left' | 'right' | null) => ({
+      x: direction === 'left' ? -300 : direction === 'right' ? 300 : 0,
+      opacity: 0,
+    }),
   };
 
   return (
@@ -356,6 +377,20 @@ export function Base44WeekView({
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
+          <AnimatePresence mode="wait" custom={swipeDirection}>
+            <motion.div
+              key={mobileStartDay.toISOString()}
+              custom={swipeDirection}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{
+                x: { type: "spring", stiffness: 300, damping: 30 },
+                opacity: { duration: 0.2 },
+              }}
+              className="md:contents" // Remove motion wrapper on desktop
+            >
           {/* Header: 3 columns on mobile, 7 on desktop */}
           <div className="sticky top-0 z-20 grid grid-cols-[60px_repeat(3,1fr)] md:grid-cols-[60px_repeat(7,1fr)] border-b border-[var(--border)] bg-[var(--surface)]">
             <div className="p-3 md:p-4 border-r border-[var(--border)] flex items-center justify-center">
@@ -501,6 +536,8 @@ export function Base44WeekView({
               </div>
             </div>
           )}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </DndContext>
 

@@ -1,175 +1,426 @@
-# Naiya
+# Naiya - AI-Powered Schedule Planner
 
-Naiya is an AI-powered weekly schedule planner that helps students and busy professionals turn messy commitments into an organized, actionable weekly calendar. Using natural language processing and intelligent scheduling algorithms, Naiya makes managing your time effortless.
+> **Portfolio Project:** A full-stack AI scheduling application showcasing Next.js 16, Supabase (Auth + PostgreSQL + Edge Functions), Row Level Security, and OpenAI GPT-5.1 integration.
 
-## Features
+[![Next.js](https://img.shields.io/badge/Next.js-16.0-black?style=flat&logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19.2-61dafb?style=flat&logo=react)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat&logo=typescript)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-Latest-3ECF8E?style=flat&logo=supabase)](https://supabase.com/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-- **Smart Scheduling**: AI-powered schedule generation using GPT-5.1 that understands your preferences and constraints
-- **Voice-to-Calendar**: Record your thoughts and have them automatically transcribed and converted into calendar events
-- **Interactive Calendar**: Drag-and-drop weekly grid with support for recurring events, one-time events, and flexible scheduling
-- **Intelligent Conflict Resolution**: Automatically handles overlaps while respecting locked commitments and quiet hours
-- **Deadline Management**: Track important deadlines with priority levels and integrate them into your schedule
-- **Natural Language Editing**: Chat with Naiya to modify your schedule conversationally
-- **Google OAuth**: Secure authentication with persistent sessions
+Naiya transforms messy commitments into an organized weekly calendar using natural language processing. Say "I work 9-5 Mon-Fri, gym 3x/week, dinner Tuesday" and watch it intelligently schedule everything—handling conflicts, respecting preferences, and understanding temporal context.
 
-## Tech Stack
+---
 
-**Frontend**
-- Next.js 16 with React 19 and App Router
-- TypeScript 5 for type safety
-- Tailwind CSS 4 for styling
-- Framer Motion for animations
-- @dnd-kit for drag-and-drop interactions
-- date-fns for date handling
+## 🎯 Portfolio Highlights
 
-**Backend**
-- Supabase Edge Functions (Deno-based serverless)
-- Supabase PostgreSQL for data persistence
-- Supabase Auth for Google OAuth
+This project demonstrates:
 
-**AI/ML**
-- OpenAI GPT-5.1 for schedule processing and natural language understanding
-- OpenAI Whisper for audio transcription
+- **Next.js 16 App Router** with React 19 and TypeScript 5
+- **Supabase** PostgreSQL with Row Level Security (RLS) policies
+- **Deno Edge Functions** for serverless AI processing
+- **OpenAI GPT-5.1** Responses API integration
+- **Database Migrations** for reproducible local development
+- **Multi-provider Authentication** (email/password, magic link, OAuth)
+- **Real-time conflict resolution** algorithm
+- **Drag-and-drop calendar** with @dnd-kit
+- **Local-first development** with Supabase CLI
 
-## Getting Started
+---
+
+## 🚀 Quick Start (5 minutes)
 
 ### Prerequisites
+- **Docker Desktop** (for Supabase local)
+- **Node.js 18+** and npm
+- **Supabase CLI** ([install](https://supabase.com/docs/guides/cli))
+- **OpenAI API key** ([get one](https://platform.openai.com/api-keys))
 
-- Node.js 18+
-- Supabase account
-- OpenAI API key
-- Google OAuth credentials
-
-### Environment Setup
-
-Create a `.env.local` file in the `frontend/` directory:
+### Setup
 
 ```bash
-OPENAI_API_KEY=your_openai_api_key
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-```
+# 1. Clone repository
+git clone https://github.com/KeananWongso/naiya.git
+cd naiya
 
-### Installation
+# 2. Start Supabase (applies migrations automatically)
+supabase start
+supabase db reset
 
-```bash
+# 3. Set OpenAI API key for Edge Functions
+supabase secrets set OPENAI_API_KEY=sk-proj-your-key-here
+
+# 4. Install frontend dependencies
 cd frontend
 npm install
+
+# 5. Configure environment (use defaults for local dev)
+cp .env.local.example .env.local
+
+# 6. Start development server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+**Visit** [http://localhost:3000](http://localhost:3000) → Sign up with email/password → Start scheduling!
 
-## Available Scripts
+📖 **Detailed setup guide:** [docs/SETUP.md](docs/SETUP.md)
+
+---
+
+## ✨ Key Features
+
+### 🤖 AI-Powered Scheduling
+- **Natural language input:** "Add gym Monday at 6pm" or "I work 9-5 Mon-Fri"
+- **Temporal intelligence:** Understands "next week", "this Friday", "every Monday"
+- **Multi-request parsing:** Processes complex sentences with multiple events
+- **Context-aware:** Remembers conversation history for follow-ups
+
+### 🗓️ Smart Conflict Resolution
+- **Proactive detection:** Checks schedule before adding events
+- **Flexible rescheduling:** Automatically moves flexible events around fixed commitments
+- **Intelligent suggestions:** "I scheduled date night Thursday to avoid your meeting on Friday"
+- **Preference windows:** Respects meal times (breakfast 7-10am, lunch 11-3pm, dinner 5-9pm)
+
+### 🎨 Interactive Calendar
+- **Drag-and-drop:** Move events across days and times
+- **Resize events:** Click and drag to adjust duration
+- **Recurring events:** Weekly patterns with exclusion support
+- **Real-time updates:** Changes sync instantly
+
+### 🎤 Voice Input
+- **Audio transcription:** OpenAI Whisper converts speech to text
+- **Brain dump mode:** Record thoughts and let AI organize them
+
+---
+
+## 🏗️ Architecture
+
+### Tech Stack
+
+**Frontend**
+- Next.js 16 (App Router, React 19, TypeScript 5)
+- Tailwind CSS 4 for styling
+- Framer Motion for animations
+- @dnd-kit for drag-and-drop
+- date-fns for date handling
+
+**Backend**
+- Supabase Auth (email/password, magic link, OAuth)
+- Supabase PostgreSQL with Row Level Security
+- Supabase Edge Functions (Deno runtime)
+- OpenAI GPT-5.1 Responses API
+- OpenAI Whisper for transcription
+
+**DevOps**
+- Local development with Supabase CLI
+- Database migrations (reproducible schema)
+- Docker containers for local Supabase
+- Environment variable management
+
+### System Flow
+
+```
+┌─────────────────────┐
+│   Next.js Frontend  │  User interacts via chat or calendar
+│   (React 19)        │
+└──────────┬──────────┘
+           │
+           ↓
+┌─────────────────────┐
+│   API Routes        │  Proxy to Edge Functions
+│   (/api/naiya/*)    │
+└──────────┬──────────┘
+           │
+           ↓
+┌─────────────────────┐
+│  Supabase Edge      │  GPT-5.1 AI Processing
+│  Functions (Deno)   │  - Conflict resolution
+│                     │  - Natural language parsing
+└──────────┬──────────┘  - Calendar generation
+           │
+           ↓
+┌─────────────────────┐
+│  OpenAI GPT-5.1     │  Natural language understanding
+│  Responses API      │  1500+ token system prompt
+└─────────────────────┘
+
+           +
+
+┌─────────────────────┐
+│  Supabase           │  Data persistence
+│  PostgreSQL + RLS   │  - calendars (JSONB)
+│                     │  - deadlines
+└─────────────────────┘  - chat_sessions
+```
+
+### Row Level Security (RLS)
+
+All database tables enforce security at the row level:
+
+```sql
+-- Example: calendars table
+CREATE POLICY "Users can update own calendar"
+  ON public.calendars FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+```
+
+**Benefits:**
+- ✅ Users can only access their own data
+- ✅ Enforced at database level (not application)
+- ✅ Prevents data leaks even if application code has bugs
+
+📖 **Full architecture documentation:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
+---
+
+## 🗄️ Database Schema
+
+### Tables
+
+**`calendars`** - One row per user storing events as JSONB
+```typescript
+{
+  user_id: UUID (PK, FK → auth.users),
+  events: JSONB[], // Array of CalendarEvent objects
+  created_at: timestamp,
+  updated_at: timestamp
+}
+```
+
+**`deadlines`** - Assignment/project deadlines
+```typescript
+{
+  id: UUID (PK),
+  user_id: UUID (FK → auth.users),
+  title: string,
+  course: string,
+  due_date: date,
+  importance: 'low' | 'medium' | 'high',
+  completed: boolean
+}
+```
+
+**`chat_sessions`** - Conversation history with Naiya AI
+```typescript
+{
+  id: UUID (PK),
+  user_id: UUID (FK → auth.users),
+  messages: JSONB[], // {role, content, timestamp}
+  created_at: timestamp
+}
+```
+
+**Security:** All tables have RLS enabled with `auth.uid() = user_id` policies.
+
+**Migrations:** See [`supabase/migrations/`](supabase/migrations/)
+
+---
+
+## 🧠 AI Pipeline Deep Dive
+
+### GPT-5.1 Integration
+
+**Model:** OpenAI GPT-5.1 via Responses API
+**System Prompt:** 1500+ tokens defining scheduling logic
+**Key Features:**
+- Multi-request parsing
+- Temporal context detection ("next week" → specific dates)
+- Recurring vs one-time event classification
+- Conflict-aware event placement
+
+### Example Processing
+
+**User input:**
+```
+"I want to plan for next week. I work 9-5 Mon-Fri,
+gym 3x/week, dinner Tuesday, date night Friday."
+```
+
+**AI processing:**
+1. ✅ Detects "next week" → calculates specific dates
+2. ✅ Recognizes "work 9-5 Mon-Fri" → recurring pattern
+3. ✅ Creates one-time events: dinner (Tue), date night (Fri)
+4. ✅ Distributes gym sessions: Mon, Wed, Fri
+5. ✅ Checks for conflicts → suggests alternatives if needed
+
+**Output:**
+```json
+{
+  "actions": [
+    {"type": "add", "title": "Work", "day": "Mon", "start": "09:00", "end": "17:00"},
+    {"type": "add", "title": "Gym", "date": "2025-01-06", "start": "18:00", "end": "19:00"},
+    ...
+  ],
+  "assistantMessage": "I've scheduled your week: work Mon-Fri 9-5, gym sessions on Mon/Wed/Fri, dinner Tuesday, and date night Friday."
+}
+```
+
+**Edge Function:** [`supabase/functions/naiya-process/index.ts`](supabase/functions/naiya-process/index.ts) (942 lines)
+
+---
+
+## 📁 Project Structure
+
+```
+naiya/
+├── frontend/                   # Next.js application
+│   ├── src/
+│   │   ├── app/               # App Router pages
+│   │   │   ├── page.tsx       # Home (brain dump)
+│   │   │   ├── schedule/      # Calendar view
+│   │   │   ├── login/         # Multi-auth login
+│   │   │   └── api/           # API routes (proxies)
+│   │   ├── components/        # React components
+│   │   │   ├── CalendarShell.tsx
+│   │   │   ├── ScheduleGrid.tsx
+│   │   │   └── DraggableEvent.tsx
+│   │   └── lib/               # Utilities
+│   │       ├── auth.ts        # Auth helpers
+│   │       ├── supabase.ts    # Supabase client
+│   │       └── api.ts         # API client
+│   └── public/                # Static assets
+├── supabase/
+│   ├── migrations/            # Database migrations
+│   │   └── 20250101000000_initial_schema.sql
+│   ├── functions/             # Edge Functions (Deno)
+│   │   ├── naiya-process/     # GPT-5.1 scheduler (942 lines)
+│   │   └── brain-dump-audio/  # Whisper transcription
+│   └── config.toml            # Local Supabase config
+├── docs/
+│   ├── SETUP.md               # Local development guide
+│   └── ARCHITECTURE.md        # Technical deep-dive
+├── shared/                    # Shared TypeScript types
+└── scripts/                   # Utility scripts
+    └── verify-no-secrets.sh   # Pre-commit secret check
+```
+
+---
+
+## 🔒 Security
+
+- **Row Level Security (RLS):** All database queries enforce user isolation
+- **API Key Protection:** OpenAI key hidden in Edge Functions (never exposed to frontend)
+- **Authentication:** Multi-provider via Supabase Auth
+- **Input Validation:** TypeScript types + runtime validation in Edge Functions
+- **Secret Management:** Via `supabase secrets set` (never committed)
+
+See [SECURITY.md](SECURITY.md) for vulnerability reporting.
+
+---
+
+## 🛠️ Development
+
+### Local Development Workflow
 
 ```bash
-npm run dev      # Start development server
-npm run build    # Build for production
-npm start        # Run production build
-npm run lint     # Run ESLint
-npm run dedupe   # Utility to deduplicate calendar events
+# Terminal 1: Supabase services
+supabase start
+supabase status  # Verify all services running
+
+# Terminal 2: Frontend dev server
+cd frontend
+npm run dev
+
+# Terminal 3 (optional): Watch Edge Function logs
+supabase functions serve --debug
 ```
 
-## Project Structure
+### Available Scripts
 
-```
-Naiya3/
-├── frontend/                  # Next.js application
-│   ├── src/
-│   │   ├── app/              # App Router pages and API routes
-│   │   ├── components/       # React components
-│   │   └── lib/              # Utilities and database clients
-│   └── public/               # Static assets
-├── supabase/                  # Supabase configuration
-│   └── functions/            # Edge functions
-│       ├── naiya-process/    # GPT-5.1 schedule processor
-│       └── brain-dump-audio/ # Audio transcription
-├── shared/                    # Shared types and utilities
-└── supabase-migrations/       # Database migrations
-```
+```bash
+# Frontend
+npm run dev        # Start dev server
+npm run build      # Production build
+npm run lint       # ESLint
 
-## How It Works
+# Database
+supabase db reset  # Apply migrations (wipes data)
+supabase db diff   # Show schema changes
 
-1. **Onboarding**: Users provide their schedule preferences, commitments, and study requirements
-2. **Schedule Generation**: The AI analyzes your input and generates an optimized weekly schedule
-3. **Interactive Editing**: Drag, drop, and resize events on the calendar or use natural language chat
-4. **Voice Input**: Record audio to quickly add events without typing
-5. **Smart Updates**: The AI re-balances your schedule when you make changes, respecting your constraints
-
-## Architecture Overview
-
-### The Pipeline
-
-```
-User Input → Frontend → API → Supabase Edge Function → GPT-5.1 → Response Processing → Calendar Update
+# Edge Functions
+supabase functions serve            # Serve all functions locally
+supabase functions deploy           # Deploy to production
+supabase secrets set KEY=value      # Set function secrets
 ```
 
-### How Naiya Understands You
+### Testing
 
-**Natural Language Processing**
-- Naiya uses GPT-5.1 to understand your requests in plain English
-- Distinguishes between recurring events ("I work 9-5 Monday to Friday") and one-time events ("I have dinner Friday")
-- Understands temporal context like "next week" or "this week"
+```bash
+# Run secret verification (pre-commit)
+./scripts/verify-no-secrets.sh
 
-**Smart Scheduling**
-- **Recurring Events**: Work schedules, weekly routines → repeat every week
-- **One-Time Events**: Appointments, social plans → specific dates
-- **Conflict Prevention**: Reviews your schedule before adding events to avoid overlaps
-- **Flexible Rescheduling**: Automatically moves flexible events around fixed commitments
+# Test Edge Functions with curl
+curl -X POST http://127.0.0.1:54321/functions/v1/naiya-process \
+  -H "Authorization: Bearer ANON_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Add lunch Monday 12pm","calendar":[],"currentDate":"2025-01-06"}'
+```
 
-**Context Awareness**
-- Knows what week you're viewing in the calendar
-- Uses date context to schedule events correctly
-- Remembers conversation history for follow-up requests
+---
 
-### Key Features
+## 📖 Documentation
 
-**Multi-Request Handling**
-Parse complex messages: "I work 9-5 Mon-Fri, gym 3x/week, dinner Tuesday, game Monday"
-- Breaks down into individual tasks
-- Ensures every item is addressed
-- Verifies nothing is missed
+- **[Setup Guide](docs/SETUP.md)** - Complete local development setup
+- **[Architecture](docs/ARCHITECTURE.md)** - System design and data flow (970 lines)
+- **[Contributing](CONTRIBUTING.md)** - Contribution guidelines
+- **[Security](SECURITY.md)** - Security policy and reporting
+- **[Edge Functions Guide](supabase/functions/README.md)** - Function development
 
-**Temporal Intelligence**
-- "Next week" → All events scheduled for the following week
-- "This Friday" → Uses the upcoming Friday date
-- "Every Monday" → Creates recurring pattern
+---
 
-**Conflict Resolution**
-- **Proactive**: Checks schedule before adding events
-- **Smart**: Suggests alternative times/days
-- **Communicative**: Explains what was moved and why
-- **Flexible**: Fixed events never move, flexible events adjust
+## 🤝 Contributing
 
-**Ambiguity Handling**
-- Makes reasonable guesses when info is unclear
-- Communicates assumptions to the user
-- Asks for clarification or confirmation
+Contributions welcome! This is a portfolio project demonstrating full-stack development practices.
 
-### Data Flow Example
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Follow [local setup guide](docs/SETUP.md)
+4. Make your changes with tests
+5. Run verification: `./scripts/verify-no-secrets.sh`
+6. Commit with [conventional commits](https://www.conventionalcommits.org/)
+7. Open a Pull Request
 
-**You say**: "I want to plan for next week. I work 9-5 Mon-Fri, gym 3x, dinner Tuesday, date night Friday."
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-**Naiya processes**:
-1. Detects "next week" → schedules for upcoming week
-2. Recognizes "work 9-5 Mon-Fri" → recurring pattern (every week)
-3. Creates specific events for next week: dinner Tuesday, date night Friday
-4. Schedules 3 gym sessions distributed across the week
-5. Checks for conflicts and adjusts as needed
+---
 
-**You get**: Updated calendar with all events correctly placed, plus a confirmation message
+## 📄 License
 
-### Under the Hood
+This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
 
-- **Frontend**: React + Next.js for smooth user experience
-- **Backend**: Supabase Edge Functions for serverless processing
-- **AI**: OpenAI GPT-5.1 for natural language understanding
-- **Storage**: Supabase PostgreSQL for calendar and user data
-- **Real-time**: Instant updates across all devices
+**Why MIT?** Permissive license allowing others to learn from and build upon this portfolio project.
 
-For detailed technical documentation, see [CURRENT_ARCHITECTURE.md](./CURRENT_ARCHITECTURE.md)
+---
 
-## License
+## 👤 Author
 
-Private
+**Keanan Wongso**
+
+- Portfolio: [Your Portfolio URL]
+- LinkedIn: [Your LinkedIn]
+- GitHub: [@KeananWongso](https://github.com/KeananWongso)
+
+---
+
+## 🙏 Acknowledgments
+
+- **OpenAI** - GPT-5.1 and Whisper APIs
+- **Supabase** - Backend infrastructure and Edge Functions
+- **Vercel** - Next.js framework and hosting
+- **Open Source Community** - All the amazing tools used in this project
+
+---
+
+## 📊 Project Stats
+
+- **Lines of Code:** ~15,000+ (excluding node_modules)
+- **Main AI Logic:** 942 lines (Edge Function)
+- **Components:** 14 React components
+- **Database Tables:** 3 (with RLS policies)
+- **API Endpoints:** 3 Edge Functions
+- **Documentation:** 8 comprehensive markdown files
+
+---
+
+**Built with ❤️ as a technical portfolio project showcasing modern full-stack development**

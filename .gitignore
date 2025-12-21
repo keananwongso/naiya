@@ -44,3 +44,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# supabase
+.supabase/
+**/supabase/.branches
+**/supabase/.temp
+
+# local secrets
+.env.local
+.env.*.local

@@ -1,4 +1,4 @@
-# Naiya - AI-Powered Schedule Planner
+# Naiya - Natural Intelligence for Your Agenda
 
 > **Portfolio Project:** A full-stack AI scheduling application showcasing Next.js 16, Supabase (Auth + PostgreSQL + Edge Functions), Row Level Security, and OpenAI GPT-5.1 integration.
 

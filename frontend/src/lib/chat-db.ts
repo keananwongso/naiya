@@ -1,5 +1,3 @@
-import { supabase } from "./supabase";
-
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -15,38 +13,32 @@ export interface ChatSession {
   updated_at: string;
 }
 
+const CHAT_SESSIONS_STORAGE_KEY = "naiya_chat_sessions";
+const DEMO_USER_ID = "demo-user";
+
 /**
- * Create a new chat session
+ * Create a new chat session (localStorage for demo)
  */
 export async function createChatSession(): Promise<ChatSession | null> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.error("No user logged in - cannot create chat session");
-      return null;
-    }
-
     const now = new Date().toISOString();
-    const newSession: Omit<ChatSession, 'id'> = {
-      user_id: user.id,
+    const newSession: ChatSession = {
+      id: crypto.randomUUID(),
+      user_id: DEMO_USER_ID,
       title: "New Chat",
       messages: [],
       created_at: now,
       updated_at: now,
     };
 
-    const { data, error } = await supabase
-      .from("chat_sessions")
-      .insert(newSession)
-      .select()
-      .single();
+    const sessions = await loadChatSessions();
+    const updated = [...sessions, newSession];
 
-    if (error) {
-      console.error("Failed to create chat session:", error);
-      return null;
+    if (typeof window !== "undefined") {
+      localStorage.setItem(CHAT_SESSIONS_STORAGE_KEY, JSON.stringify(updated));
     }
 
-    return data as ChatSession;
+    return newSession;
   } catch (error) {
     console.error("Failed to create chat session:", error);
     return null;
@@ -54,28 +46,16 @@ export async function createChatSession(): Promise<ChatSession | null> {
 }
 
 /**
- * Load all chat sessions for the current user
+ * Load all chat sessions (localStorage for demo)
  */
 export async function loadChatSessions(): Promise<ChatSession[]> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.error("No user logged in - cannot load chat sessions");
-      return [];
-    }
+    if (typeof window === "undefined") return [];
 
-    const { data, error } = await supabase
-      .from("chat_sessions")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false });
+    const stored = localStorage.getItem(CHAT_SESSIONS_STORAGE_KEY);
+    if (!stored) return [];
 
-    if (error) {
-      console.error("Failed to load chat sessions:", error);
-      return [];
-    }
-
-    return (data as ChatSession[]) || [];
+    return JSON.parse(stored) as ChatSession[];
   } catch (error) {
     console.error("Failed to load chat sessions:", error);
     return [];
@@ -83,29 +63,12 @@ export async function loadChatSessions(): Promise<ChatSession[]> {
 }
 
 /**
- * Load a specific chat session by ID
+ * Load a specific chat session by ID (localStorage for demo)
  */
 export async function loadChatSession(sessionId: string): Promise<ChatSession | null> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.error("No user logged in - cannot load chat session");
-      return null;
-    }
-
-    const { data, error } = await supabase
-      .from("chat_sessions")
-      .select("*")
-      .eq("id", sessionId)
-      .eq("user_id", user.id)
-      .single();
-
-    if (error) {
-      console.error("Failed to load chat session:", error);
-      return null;
-    }
-
-    return data as ChatSession;
+    const sessions = await loadChatSessions();
+    return sessions.find(s => s.id === sessionId) || null;
   } catch (error) {
     console.error("Failed to load chat session:", error);
     return null;
@@ -113,7 +76,7 @@ export async function loadChatSession(sessionId: string): Promise<ChatSession | 
 }
 
 /**
- * Save messages to a chat session
+ * Save messages to a chat session (localStorage for demo)
  */
 export async function saveChatSession(
   sessionId: string,
@@ -121,30 +84,21 @@ export async function saveChatSession(
   title?: string
 ): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.error("No user logged in - cannot save chat session");
-      return;
-    }
+    const sessions = await loadChatSessions();
 
     // Auto-generate title from first user message if not provided
     const sessionTitle = title || (messages.length > 0 && messages[0].role === "user"
       ? messages[0].content.slice(0, 50) + (messages[0].content.length > 50 ? "..." : "")
       : "New Chat");
 
-    const { error } = await supabase
-      .from("chat_sessions")
-      .update({
-        messages,
-        title: sessionTitle,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", sessionId)
-      .eq("user_id", user.id);
+    const updated = sessions.map(s =>
+      s.id === sessionId
+        ? { ...s, messages, title: sessionTitle, updated_at: new Date().toISOString() }
+        : s
+    );
 
-    if (error) {
-      console.error("Failed to save chat session:", error);
-      return;
+    if (typeof window !== "undefined") {
+      localStorage.setItem(CHAT_SESSIONS_STORAGE_KEY, JSON.stringify(updated));
     }
 
     console.log("Chat session saved successfully");
@@ -154,25 +108,15 @@ export async function saveChatSession(
 }
 
 /**
- * Delete a chat session
+ * Delete a chat session (localStorage for demo)
  */
 export async function deleteChatSession(sessionId: string): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.error("No user logged in - cannot delete chat session");
-      return;
-    }
+    const sessions = await loadChatSessions();
+    const filtered = sessions.filter(s => s.id !== sessionId);
 
-    const { error } = await supabase
-      .from("chat_sessions")
-      .delete()
-      .eq("id", sessionId)
-      .eq("user_id", user.id);
-
-    if (error) {
-      console.error("Failed to delete chat session:", error);
-      return;
+    if (typeof window !== "undefined") {
+      localStorage.setItem(CHAT_SESSIONS_STORAGE_KEY, JSON.stringify(filtered));
     }
 
     console.log("Chat session deleted successfully");

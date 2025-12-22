@@ -105,8 +105,8 @@ export function Base44WeekView({
   onEventCreate,
   onEventClick,
 }: Props) {
-  const weekStart = startOfWeek(currentDate);
-  const weekEnd = endOfWeek(currentDate);
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 }); // Week starts on Monday
+  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
   const [recurringModalOpen, setRecurringModalOpen] = useState(false);

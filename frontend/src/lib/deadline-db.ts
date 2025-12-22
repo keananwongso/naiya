@@ -1,10 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 export interface Deadline {
     id: string;
     title: string;
@@ -16,32 +9,23 @@ export interface Deadline {
     updatedAt?: string;
 }
 
+const DEADLINES_STORAGE_KEY = "naiya_deadlines";
+
 /**
- * Load all deadlines for the current user from Supabase
+ * Load all deadlines from localStorage (no auth required for demo)
  */
 export async function loadDeadlines(): Promise<Deadline[]> {
     try {
-        const { data, error } = await supabase
-            .from('deadlines')
-            .select('*')
-            .order('due_date', { ascending: true });
+        if (typeof window === "undefined") return [];
 
-        if (error) {
-            console.error('Error loading deadlines from Supabase:', error);
-            throw error;
+        const stored = localStorage.getItem(DEADLINES_STORAGE_KEY);
+        if (!stored) {
+            console.log("No deadlines found in localStorage, returning empty array");
+            return [];
         }
 
-        // Map database columns to our Deadline interface
-        return (data || []).map((row: any) => ({
-            id: row.id,
-            title: row.title,
-            course: row.course,
-            dueDate: row.due_date,
-            importance: row.importance,
-            completed: row.completed || false,
-            createdAt: row.created_at,
-            updatedAt: row.updated_at,
-        }));
+        console.log("Deadlines loaded from localStorage successfully");
+        return JSON.parse(stored) as Deadline[];
     } catch (error) {
         console.error('Failed to load deadlines:', error);
         return [];
@@ -49,43 +33,14 @@ export async function loadDeadlines(): Promise<Deadline[]> {
 }
 
 /**
- * Save deadlines to Supabase
+ * Save deadlines to localStorage (no auth required for demo)
  */
 export async function saveDeadlines(deadlines: Deadline[]): Promise<void> {
     try {
-        // Delete all existing deadlines for this user
-        const { error: deleteError } = await supabase
-            .from('deadlines')
-            .delete()
-            .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+        if (typeof window === "undefined") return;
 
-        if (deleteError) {
-            console.error('Error deleting old deadlines:', deleteError);
-            throw deleteError;
-        }
-
-        // Insert new deadlines
-        if (deadlines.length > 0) {
-            const rows = deadlines.map(deadline => ({
-                id: deadline.id,
-                title: deadline.title,
-                course: deadline.course,
-                due_date: deadline.dueDate,
-                importance: deadline.importance,
-                completed: deadline.completed,
-            }));
-
-            const { error: insertError } = await supabase
-                .from('deadlines')
-                .insert(rows);
-
-            if (insertError) {
-                console.error('Error inserting deadlines:', insertError);
-                throw insertError;
-            }
-        }
-
-        console.log(`Saved ${deadlines.length} deadlines to Supabase`);
+        localStorage.setItem(DEADLINES_STORAGE_KEY, JSON.stringify(deadlines));
+        console.log(`Saved ${deadlines.length} deadlines to localStorage`);
     } catch (error) {
         console.error('Failed to save deadlines:', error);
         throw error;
@@ -97,15 +52,11 @@ export async function saveDeadlines(deadlines: Deadline[]): Promise<void> {
  */
 export async function toggleDeadlineComplete(id: string, completed: boolean): Promise<void> {
     try {
-        const { error } = await supabase
-            .from('deadlines')
-            .update({ completed, updated_at: new Date().toISOString() })
-            .eq('id', id);
-
-        if (error) {
-            console.error('Error updating deadline:', error);
-            throw error;
-        }
+        const deadlines = await loadDeadlines();
+        const updated = deadlines.map(d =>
+            d.id === id ? { ...d, completed, updatedAt: new Date().toISOString() } : d
+        );
+        await saveDeadlines(updated);
     } catch (error) {
         console.error('Failed to toggle deadline:', error);
         throw error;
@@ -117,35 +68,21 @@ export async function toggleDeadlineComplete(id: string, completed: boolean): Pr
  */
 export async function addDeadline(deadline: Omit<Deadline, 'id' | 'createdAt' | 'updatedAt'>): Promise<Deadline> {
     try {
-        const newDeadline = {
+        const newDeadline: Deadline = {
+            id: crypto.randomUUID(),
             title: deadline.title,
             course: deadline.course,
-            due_date: deadline.dueDate,
+            dueDate: deadline.dueDate,
             importance: deadline.importance,
             completed: deadline.completed,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         };
 
-        const { data, error } = await supabase
-            .from('deadlines')
-            .insert([newDeadline])
-            .select()
-            .single();
+        const deadlines = await loadDeadlines();
+        await saveDeadlines([...deadlines, newDeadline]);
 
-        if (error) {
-            console.error('Error adding deadline:', error);
-            throw error;
-        }
-
-        return {
-            id: data.id,
-            title: data.title,
-            course: data.course,
-            dueDate: data.due_date,
-            importance: data.importance,
-            completed: data.completed,
-            createdAt: data.created_at,
-            updatedAt: data.updated_at,
-        };
+        return newDeadline;
     } catch (error) {
         console.error('Failed to add deadline:', error);
         throw error;
@@ -157,15 +94,9 @@ export async function addDeadline(deadline: Omit<Deadline, 'id' | 'createdAt' | 
  */
 export async function deleteDeadline(id: string): Promise<void> {
     try {
-        const { error } = await supabase
-            .from('deadlines')
-            .delete()
-            .eq('id', id);
-
-        if (error) {
-            console.error('Error deleting deadline:', error);
-            throw error;
-        }
+        const deadlines = await loadDeadlines();
+        const filtered = deadlines.filter(d => d.id !== id);
+        await saveDeadlines(filtered);
     } catch (error) {
         console.error('Failed to delete deadline:', error);
         throw error;

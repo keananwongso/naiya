@@ -100,26 +100,16 @@ export default function Home() {
     let isMounted = true;
     (async () => {
       try {
-        // Check for user session
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          router.push("/login");
-          return;
-        }
-
+        // Load calendar and deadlines (no auth required for local demo)
         const [loadedEvents, loadedDeadlines] = await Promise.all([
           loadCalendar(),
           loadDeadlines()
         ]);
 
-        const userMeta = session.user?.user_metadata || {};
-        const emailName = session.user?.email ? session.user.email.split("@")[0] : "";
-        const name = userMeta.full_name || userMeta.name || emailName || "there";
-
         if (isMounted) {
           setEvents(loadedEvents);
           setDeadlines(loadedDeadlines);
-          setDisplayName(name);
+          setDisplayName("there");
         }
       } catch (error) {
         console.error("Failed to load data:", error);

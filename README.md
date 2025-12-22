@@ -21,7 +21,7 @@ This project demonstrates:
 - **Deno Edge Functions** for serverless AI processing
 - **OpenAI GPT-5.1** Responses API integration
 - **Database Migrations** for reproducible local development
-- **Multi-provider Authentication** (email/password, magic link, OAuth)
+- **Authentication via Supabase** (Google OAuth in UI, extensible API)
 - **Real-time conflict resolution** algorithm
 - **Drag-and-drop calendar** with @dnd-kit
 - **Local-first development** with Supabase CLI
@@ -43,25 +43,30 @@ This project demonstrates:
 git clone https://github.com/KeananWongso/naiya.git
 cd naiya
 
-# 2. Start Supabase (applies migrations automatically)
+# 2. Start Supabase
 supabase start
 supabase db reset
 
-# 3. Set OpenAI API key for Edge Functions
-supabase secrets set OPENAI_API_KEY=sk-proj-your-key-here
+# 3. Create Edge Functions environment file
+cat > supabase/.env.local <<'EOF'
+OPENAI_API_KEY=sk-proj-your-openai-key-here
+EOF
 
-# 4. Install frontend dependencies
+# 4. Start Edge Functions (in a separate terminal)
+supabase functions serve --env-file supabase/.env.local
+
+# 5. Install frontend dependencies
 cd frontend
 npm install
-
-# 5. Configure environment (use defaults for local dev)
 cp .env.local.example .env.local
 
 # 6. Start development server
 npm run dev
 ```
 
-**Visit** [http://localhost:3000](http://localhost:3000) → Sign up with email/password → Start scheduling!
+**Visit** [http://localhost:3000/schedule](http://localhost:3000/schedule) → Click "Try Naiya" → Start scheduling!
+
+> **Note:** The demo uses localStorage for data persistence (no authentication required). Your calendar, deadlines, and chat history are stored locally in your browser.
 
 📖 **Detailed setup guide:** [docs/SETUP.md](docs/SETUP.md)
 
@@ -105,7 +110,7 @@ npm run dev
 - date-fns for date handling
 
 **Backend**
-- Supabase Auth (email/password, magic link, OAuth)
+- Supabase Auth (Google OAuth, extensible to email/password via API)
 - Supabase PostgreSQL with Row Level Security
 - Supabase Edge Functions (Deno runtime)
 - OpenAI GPT-5.1 Responses API
@@ -397,8 +402,8 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 **Keanan Wongso**
 
-- Portfolio: [Your Portfolio URL]
-- LinkedIn: [Your LinkedIn]
+- Portfolio: [keananwongso.com](https://keananwongso.com)
+- LinkedIn: [linkedin.com/in/keananwongso](https://www.linkedin.com/in/keananwongso/)
 - GitHub: [@KeananWongso](https://github.com/KeananWongso)
 
 ---

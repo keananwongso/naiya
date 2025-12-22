@@ -1,0 +1,72 @@
+# Supabase Local Development Configuration
+# Generated for Naiya project
+# Docs: https://supabase.com/docs/guides/cli/config
+
+[project]
+name = "naiya"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[db.pooler]
+enabled = false
+
+[realtime]
+enabled = true
+port = 54323
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1:54321"
+
+[inbucket]
+enabled = true
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+
+# Email auth (primary for local dev)
+enable_signup = true
+enable_confirmations = false  # Disable email confirmation for local dev
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = false
+enable_confirmations = false
+
+# External OAuth providers (optional for local dev)
+[auth.external.google]
+enabled = false  # Set to true if you configure Google OAuth
+# client_id = ""
+# secret = ""
+
+[functions]
+# Edge Functions configuration
+# Secrets managed via: supabase secrets set KEY=value
+
+[functions.naiya-process]
+verify_jwt = false  # Set true for production
+
+[functions.brain-dump-audio]
+verify_jwt = false  # Set true for production
+
+[analytics]
+enabled = false

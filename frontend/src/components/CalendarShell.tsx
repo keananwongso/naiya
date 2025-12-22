@@ -127,7 +127,8 @@ export function CalendarShell({
   setIsProcessing?: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
   const [weekStartIso, setWeekStartIso] = useState<string>(() => {
-    const monday = startOfWeek(parseISO(sampleInput.weekOf), {
+    // Initialize with current week's Monday, not sample data
+    const monday = startOfWeek(new Date(), {
       weekStartsOn: 1,
     });
     return formatISO(monday, { representation: "date" });
@@ -270,8 +271,9 @@ export function CalendarShell({
         flexibility: e.flexibility || (e.type === "COMMITMENT" ? "fixed" : "medium"),
       }));
 
-      // Pass the week start date as context so Naiya knows which week the user is viewing
-      const result = await processNaiya(backendEvents, message, conversationHistory, weekStartIso);
+      // Pass the actual current date (not week start) so Naiya knows what "today" is
+      const actualToday = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      const result = await processNaiya(backendEvents, message, conversationHistory, actualToday);
       setMessage(result.assistantMessage);
 
       if (result.events) {

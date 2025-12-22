@@ -772,6 +772,7 @@ serve(async (req) => {
         const today = currentDate ? new Date(currentDate + 'T12:00:00Z') : new Date();
         const todayStr = today.toISOString().split('T')[0];
         const dayOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][today.getDay()];
+        console.log('[DEBUG] Current date received:', currentDate, '| Parsed as:', todayStr, dayOfWeek);
 
         // Generate next 7 days mapping for context
         const upcomingDates = Array.from({ length: 7 }, (_, i) => {
@@ -856,12 +857,14 @@ Please process the user's request and return the appropriate actions.`;
         }
 
         const cleanContent = rawContent.replace(/```json\n?|```/g, "").trim();
+        console.log('[DEBUG] Clean LLM response:', cleanContent);
 
         // Parse and validate LLM response
         let summary: SummaryJSON;
         try {
             const parsed = JSON.parse(cleanContent);
             summary = validateLLMResponse(parsed);
+            console.log('[DEBUG] Validated summary:', JSON.stringify(summary));
         } catch (validationError: any) {
             console.error('LLM response validation failed:', validationError.message);
             console.error('Raw response:', cleanContent);
@@ -869,6 +872,7 @@ Please process the user's request and return the appropriate actions.`;
         }
 
         const hasActions = summary.actions && summary.actions.length > 0;
+        console.log('[DEBUG] Has actions:', hasActions, 'Actions count:', summary.actions?.length || 0);
 
         // If no actions, return current calendar untouched
         if (!hasActions) {
@@ -884,9 +888,11 @@ Please process the user's request and return the appropriate actions.`;
 
         // Expand calendar with actions
         const updatedEvents = await expandCalendar(summary.actions, calendar || []);
+        console.log('[DEBUG] Updated events after expansion:', updatedEvents.length);
 
         // Resolve conflicts
         const { events: conflictFreeEvents, notes: conflictNotes, hasUnresolved } = resolveConflicts(updatedEvents);
+        console.log('[DEBUG] Conflict-free events:', conflictFreeEvents.length, 'Conflicts:', conflictNotes.length);
 
         let assistantMessage = summary.assistantMessage;
         let finalEvents = conflictFreeEvents;
@@ -920,12 +926,19 @@ Please process the user's request and return the appropriate actions.`;
             completed: false,
         }));
 
+        const responseData = {
+            events: finalEvents || [],
+            deadlines: deadlinesWithIds,
+            assistantMessage,
+        };
+        console.log('[DEBUG] Final response:', JSON.stringify({
+            eventsCount: responseData.events.length,
+            deadlinesCount: responseData.deadlines.length,
+            message: responseData.assistantMessage
+        }));
+
         return new Response(
-            JSON.stringify({
-                events: finalEvents || [],
-                deadlines: deadlinesWithIds,
-                assistantMessage,
-            }),
+            JSON.stringify(responseData),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
 

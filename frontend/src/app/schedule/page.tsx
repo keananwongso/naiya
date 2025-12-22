@@ -59,13 +59,7 @@ export default function SchedulePage() {
 
     const loadData = async () => {
       try {
-        // Check for user session
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          router.push("/login");
-          return;
-        }
-
+        // Load data from localStorage (no auth required for demo)
         const [loadedEvents, loadedDeadlines] = await Promise.all([
           loadCalendar(),
           loadDeadlines()
@@ -75,7 +69,7 @@ export default function SchedulePage() {
           setDeadlines(loadedDeadlines);
         }
       } catch (error) {
-        console.error("Failed to load data from Supabase", error);
+        console.error("Failed to load data", error);
       }
     };
 

@@ -9,12 +9,36 @@ Complete guide to running Naiya locally with Supabase CLI.
 - **Supabase CLI** ([install guide](https://supabase.com/docs/guides/cli))
 - **OpenAI API Key** ([get one](https://platform.openai.com/api-keys))
 
-### Install Supabase CLI (macOS/Linux)
+### Install Supabase CLI
+
+**Option A: Direct Install (Recommended - no Xcode tools needed)**
 ```bash
-brew install supabase/tap/supabase
+# Install via official script
+curl -fsSL https://raw.githubusercontent.com/supabase/cli/main/install.sh | bash
+
+# Add to PATH (if not auto-added)
+echo 'export PATH=$PATH:~/.supabase/bin' >> ~/.zshrc
+source ~/.zshrc
 
 # Verify installation
 supabase --version
+```
+
+**Option B: Homebrew (requires updated Command Line Tools)**
+```bash
+brew install supabase/tap/supabase
+
+# If you get "Command Line Tools are too outdated" error:
+# 1. Update: sudo rm -rf /Library/Developer/CommandLineTools && sudo xcode-select --install
+# 2. OR use Option A above
+
+# Verify installation
+supabase --version
+```
+
+**Windows:**
+```powershell
+scoop install supabase
 ```
 
 ---
@@ -54,15 +78,28 @@ supabase db reset
 supabase db diff  # Should show no changes
 ```
 
-### 4. Set Edge Function Secrets
-```bash
-# Set OpenAI API key for Edge Functions
-supabase secrets set OPENAI_API_KEY=sk-proj-your-openai-key-here
+### 4. Set OpenAI API Key (Local Development)
 
-# Verify it was set
-supabase secrets list
-# Output: OPENAI_API_KEY
+**For local development, use environment variables:**
+
+```bash
+# Option A: Set in your current terminal session
+export OPENAI_API_KEY=sk-proj-your-openai-key-here
+
+# Verify it's set
+echo $OPENAI_API_KEY
+
+# Option B: Add to your shell profile (persists across sessions)
+echo 'export OPENAI_API_KEY=sk-proj-your-openai-key-here' >> ~/.zshrc
+source ~/.zshrc
+
+# Option C: Create a local .env file (recommended)
+cat > supabase/.env.local <<'EOF'
+OPENAI_API_KEY=sk-proj-your-openai-key-here
+EOF
 ```
+
+**Note:** The `supabase secrets set` command is for **production deployments only**. For local dev, Edge Functions automatically pick up environment variables.
 
 ### 5. Configure Frontend
 ```bash
@@ -85,11 +122,12 @@ npm run dev
 # App will be available at http://localhost:3000
 ```
 
-### 7. Sign Up & Use
-1. Navigate to http://localhost:3000
-2. Click "Sign Up" tab
-3. Create account with email/password (no email confirmation needed locally!)
-4. Start using Naiya!
+### 7. Start Using Naiya
+1. Navigate to http://localhost:3000/login
+2. Click "Try Naiya" button
+3. Start scheduling!
+
+**Note:** The demo mode uses **localStorage** for data persistence (no authentication required). Your calendar, deadlines, and chat history are stored locally in your browser. This makes it easy to test the app without setting up OAuth credentials.
 
 ---
 
@@ -243,12 +281,15 @@ supabase start
 
 ### "OPENAI_API_KEY not configured"
 ```bash
-# Set the secret
-supabase secrets set OPENAI_API_KEY=sk-proj-your-key
+# Set environment variable
+export OPENAI_API_KEY=sk-proj-your-key
 
-# Restart Edge Functions
-# Stop any running `supabase functions serve`
-# Then start again
+# OR create supabase/.env.local file
+echo 'OPENAI_API_KEY=sk-proj-your-key' > supabase/.env.local
+
+# Restart Supabase to pick up new env vars
+supabase stop
+supabase start
 ```
 
 ### "Cannot connect to database"
@@ -308,9 +349,9 @@ See [docs/DEPLOYMENT.md](./DEPLOYMENT.md) for deploying to:
 
 ```bash
 # One-command start (from project root)
+export OPENAI_API_KEY=sk-proj-your-key && \
 supabase start && \
 supabase db reset && \
-supabase secrets set OPENAI_API_KEY=sk-proj-your-key && \
 cd frontend && npm run dev
 ```
 

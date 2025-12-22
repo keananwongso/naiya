@@ -55,10 +55,10 @@ EOF
 # 4. Start Edge Functions (in a separate terminal)
 supabase functions serve --env-file supabase/.env.local
 
-# 5. Install frontend dependencies
+# 5. Install frontend dependencies and configure
 cd frontend
 npm install
-cp .env.local.example .env.local
+cp .env.local.example .env.local  # Uses local Supabase defaults
 
 # 6. Start development server
 npm run dev

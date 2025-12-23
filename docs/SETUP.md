@@ -7,7 +7,7 @@ Complete guide to running Naiya locally with Supabase CLI.
 - **Node.js** 18+ and npm
 - **Docker Desktop** (for Supabase local)
 - **Supabase CLI** ([install guide](https://supabase.com/docs/guides/cli))
-- **OpenAI API Key** ([get one](https://platform.openai.com/api-keys))
+- **DeepSeek API Key** ([get one](https://platform.deepseek.com/))
 
 ### Install Supabase CLI
 
@@ -78,25 +78,23 @@ supabase db reset
 supabase db diff  # Should show no changes
 ```
 
-### 4. Set OpenAI API Key (Local Development)
+### 4. Configure API Keys
 
-**For local development, use environment variables:**
+**Create environment file for Edge Functions:**
 
 ```bash
-# Option A: Set in your current terminal session
-export OPENAI_API_KEY=sk-proj-your-openai-key-here
+# Copy the template
+cp supabase/.env.local.example supabase/.env.local
 
-# Verify it's set
-echo $OPENAI_API_KEY
+# Edit the file and add your DeepSeek API key
+# Replace 'your-deepseek-api-key-here' with your actual key from https://platform.deepseek.com/
+nano supabase/.env.local  # or use your preferred editor
+```
 
-# Option B: Add to your shell profile (persists across sessions)
-echo 'export OPENAI_API_KEY=sk-proj-your-openai-key-here' >> ~/.zshrc
-source ~/.zshrc
-
-# Option C: Create a local .env file (recommended)
-cat > supabase/.env.local <<'EOF'
-OPENAI_API_KEY=sk-proj-your-openai-key-here
-EOF
+Your `supabase/.env.local` should look like:
+```bash
+DEEPSEEK_API_KEY=sk-your-actual-deepseek-key-here
+OPENAI_API_KEY=your-openai-key-here  # Optional, for Whisper transcription
 ```
 
 **Note:** The `supabase secrets set` command is for **production deployments only**. For local dev, Edge Functions automatically pick up environment variables.

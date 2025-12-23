@@ -78,6 +78,15 @@ export interface CalendarEvent {
   tagId?: string;
   notes?: string;
   recurrence?: Recurrence;
+
+  // Extended fields for DeepSeek integration
+  all_day?: boolean; // True if event spans entire day
+  spans_midnight?: boolean; // True if end time < start time (e.g., 22:00 - 02:00)
+  timezone?: string; // IANA timezone (e.g., "America/Los_Angeles")
+  busy_status?: "free" | "busy" | "tentative"; // Availability status
+  location?: string; // Physical or virtual location
+  description?: string; // Additional event details
+  priority?: "low" | "medium" | "high"; // Event priority
 }
 
 export interface CalendarJSON {
@@ -146,4 +155,86 @@ export interface ScheduleInput {
 export interface StudyPlan {
   events: CalendarEvent[];
   notes: string[];
+}
+
+// Deadline interface for database storage
+export interface Deadline {
+  id: string;
+  title: string;
+  course?: string;
+  date: string; // YYYY-MM-DD
+  completed: boolean;
+  createdAt: string;
+  updatedAt: string;
+
+  // Extended fields for DeepSeek integration
+  due_time?: string; // HH:MM format for specific deadline time
+  duration?: number; // Estimated hours to complete
+  min_chunk_duration?: number; // Minimum continuous work session (hours)
+  splittable?: boolean; // Can be broken into multiple sessions
+  buffer_hours?: number; // Hours before deadline to finish by
+  priority?: "low" | "medium" | "high"; // Urgency level
+  tags?: string[]; // Categorization tags
+}
+
+// DeepSeek LLM Extraction Result Types
+export interface ExtractedEvent {
+  title: string;
+  type?: EventType;
+  date?: string; // YYYY-MM-DD or temporal reference like "tomorrow", "next Monday"
+  day_pattern?: string; // "Mon-Fri", "Mon/Wed/Fri", "weekdays", "weekends"
+  frequency?: string; // "3x/week", "daily", "twice a week"
+  start?: string; // HH:MM or natural language like "morning", "after lunch"
+  end?: string; // HH:MM or natural language
+  duration?: string; // "1 hour", "30 min", "2h"
+  all_day?: boolean;
+  flexibility?: Flexibility;
+  location?: string;
+  notes?: string;
+  priority?: "low" | "medium" | "high";
+}
+
+export interface ExtractedDeadline {
+  title: string;
+  course?: string;
+  date: string; // YYYY-MM-DD or temporal reference
+  due_time?: string; // HH:MM
+  duration?: number; // Hours
+  min_chunk_duration?: number;
+  splittable?: boolean;
+  buffer_hours?: number;
+  priority?: "low" | "medium" | "high";
+  tags?: string[];
+}
+
+export interface ExtractedModification {
+  action: "delete" | "update" | "reschedule";
+  target: {
+    title?: string; // Event title to match
+    date?: string; // Specific date
+    day?: Day; // Day of week
+    type?: EventType; // Event type
+  };
+  changes?: {
+    title?: string;
+    date?: string;
+    start?: string;
+    end?: string;
+    location?: string;
+    notes?: string;
+  };
+  reason?: string;
+}
+
+export interface LLMExtractionResult {
+  message: string; // Conversational response to user
+  events?: ExtractedEvent[]; // New events to add
+  deadlines?: ExtractedDeadline[]; // New deadlines to track
+  modifications?: ExtractedModification[]; // Changes to existing items
+  user_preferences?: {
+    wake_time?: string;
+    sleep_time?: string;
+    max_study_hours?: number;
+    timezone?: string;
+  };
 }

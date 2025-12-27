@@ -16,6 +16,7 @@ const corsHeaders = {
 async function callDeepSeekAPI(
     userMessage: string,
     currentDate: string,
+    calendar: CalendarEvent[] = [],
     conversationHistory: Array<{ role: string; content: string }> = []
 ): Promise<LLMExtractionResult> {
     const deepseekApiKey = Deno.env.get('DEEPSEEK_API_KEY');
@@ -25,7 +26,7 @@ async function callDeepSeekAPI(
 
     // Build the prompt
     const systemPrompt = buildSystemPrompt();
-    const userPrompt = buildDeepSeekPrompt(userMessage, currentDate, conversationHistory);
+    const userPrompt = buildDeepSeekPrompt(userMessage, currentDate, calendar, conversationHistory);
 
     // Call DeepSeek Chat Completions API
     const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
@@ -102,7 +103,7 @@ serve(async (req) => {
 
         // Step 1: Call DeepSeek to extract entities
         console.log('[DEBUG] Calling DeepSeek API...');
-        const extraction = await callDeepSeekAPI(message, todayStr, conversationHistory);
+        const extraction = await callDeepSeekAPI(message, todayStr, calendar || [], conversationHistory);
         console.log('[DEBUG] Extraction result:', JSON.stringify({
             eventsCount: extraction.events?.length || 0,
             deadlinesCount: extraction.deadlines?.length || 0,

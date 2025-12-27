@@ -32,7 +32,7 @@ This project demonstrates:
 ## 🚀 Quick Start (5 minutes)
 
 ### Prerequisites
-- **Docker Desktop** (for Supabase local)
+- **Docker Desktop** ([install](https://www.docker.com/products/docker-desktop/)) - Required for local Supabase
 - **Node.js 18+** and npm
 - **Supabase CLI** ([install](https://supabase.com/docs/guides/cli))
 - **DeepSeek API key** ([get one](https://platform.deepseek.com/))

@@ -6,9 +6,17 @@
 export function buildDeepSeekPrompt(
   userMessage: string,
   currentDate: string,
+  calendar: Array<any> = [],
   conversationHistory: Array<{ role: string; content: string }> = []
 ): string {
-  return `You are Naiya, an AI scheduling assistant. Today's date is ${currentDate}.
+  // Format calendar for context
+  const calendarContext = calendar.length > 0
+    ? `\n\nCurrent Calendar Events:\n${calendar.map(e =>
+        `- ${e.title} (${e.day || e.date}) ${e.start}-${e.end}${e.type ? ` [${e.type}]` : ''}`
+      ).join('\n')}`
+    : '';
+
+  return `You are Naiya, an AI scheduling assistant. Today's date is ${currentDate}.${calendarContext}
 
 Your ONLY job is to extract scheduling information from the user's message and return it as JSON.
 DO NOT generate schedules, resolve conflicts, or expand patterns - just extract the raw entities.

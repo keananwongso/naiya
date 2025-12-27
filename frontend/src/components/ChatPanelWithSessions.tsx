@@ -39,7 +39,15 @@ export function ChatPanelWithSessions({
 
   // Load past sessions on mount
   useEffect(() => {
-    loadPastSessions();
+    // Check if coming from brain dump
+    const calendarUpdated = localStorage.getItem('calendar-updated');
+    if (calendarUpdated === 'true') {
+      localStorage.removeItem('calendar-updated'); // Clear flag
+      // Force reload sessions to pick up the new one
+      loadPastSessions();
+    } else {
+      loadPastSessions();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

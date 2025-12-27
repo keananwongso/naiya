@@ -48,19 +48,22 @@ cd naiya
 supabase start
 supabase db reset
 
-# 3. Create Edge Functions environment file
+# 3. Configure API keys (REQUIRED)
 cp supabase/.env.local.example supabase/.env.local
-# Edit supabase/.env.local and add your DeepSeek API key
+# Open supabase/.env.local and replace "your-deepseek-api-key-here" with your actual DeepSeek API key
+# Get your key from: https://platform.deepseek.com/
 
-# 4. Start Edge Functions (in a separate terminal)
-supabase functions serve --env-file supabase/.env.local
-
-# 5. Install frontend dependencies and configure
+# 4. Install frontend dependencies and configure
 cd frontend
 npm install
 cp .env.local.example .env.local  # Uses local Supabase defaults
+cd ..
 
-# 6. Start development server
+# 5. Start Edge Functions (in a separate terminal)
+supabase functions serve --env-file supabase/.env.local
+
+# 6. Start development server (in another terminal)
+cd frontend
 npm run dev
 ```
 

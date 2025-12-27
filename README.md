@@ -79,6 +79,7 @@ npm run dev
 - **Temporal intelligence:** Understands "next week", "this Friday", "every Monday"
 - **Multi-request parsing:** Processes complex sentences with multiple events
 - **Context-aware:** Remembers conversation history for follow-ups
+- **Smart clarification:** Asks questions when info is missing (e.g., "I have gym" → "Which days and what time?")
 
 ### 🗓️ Smart Conflict Resolution
 - **Proactive detection:** Checks schedule before adding events
@@ -125,6 +126,8 @@ npm run dev
 
 ### System Flow
 
+**High-level overview:**
+
 ```
 ┌─────────────────────┐
 │   Next.js Frontend  │  User interacts via chat or calendar
@@ -162,6 +165,23 @@ npm run dev
 │                     │  - deadlines
 └─────────────────────┘  - chat_sessions
 ```
+
+**Detailed request pipeline (example: "I have gym Monday Tuesday Friday at 5-6pm"):**
+
+```
+1. USER INPUT → Frontend sends message to backend
+2. index.ts → Calls DeepSeek API with prompt
+3. DeepSeek API → Returns: {"events": [{"title": "gym", "day_pattern": "Monday Tuesday Friday", "start": "5pm", "end": "6pm"}]}
+4. validation.ts → Validates DeepSeek output is safe
+5. algorithms.ts → Expands "Monday Tuesday Friday" → ["Mon", "Tue", "Fri"]
+                 → Normalizes "5pm" → "17:00", "6pm" → "18:00"
+                 → Creates 3 separate CalendarEvent objects
+6. validation.ts → Sanitizes events (XSS protection)
+7. validation.ts → Checks conflicts with existing calendar
+8. index.ts → Returns 3 gym events to frontend
+```
+
+> See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for complete technical deep-dive with diagrams
 
 ### Row Level Security (RLS)
 

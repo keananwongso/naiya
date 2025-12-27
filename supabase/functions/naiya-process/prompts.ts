@@ -17,8 +17,8 @@ Extract the following from the user's message:
 
 1. **Events**: New activities to add to calendar
    - title: Event name
-   - date: Temporal reference (e.g., "tomorrow", "next Monday", "2024-12-25")
-   - day_pattern: Day patterns (e.g., "Mon-Fri", "Mon/Wed/Fri", "weekdays")
+   - date: ONLY for one-time events (e.g., "tomorrow", "next Monday", "2024-12-25")
+   - day_pattern: ONLY for recurring events (e.g., "Mon-Fri", "Mon/Wed/Fri", "weekdays", "Monday Tuesday Friday")
    - frequency: Frequency patterns (e.g., "3x/week", "daily", "twice a week")
    - start: Start time (can be natural language like "morning", "9am")
    - end: End time or leave empty if duration is provided
@@ -27,6 +27,10 @@ Extract the following from the user's message:
    - location: Physical or virtual location
    - notes: Additional context
    - priority: "low" | "medium" | "high"
+
+   CRITICAL: Use EITHER "date" OR "day_pattern", never both!
+   - "date" = specific instance (e.g., "tomorrow", "next Friday")
+   - "day_pattern" = recurring (e.g., "Monday Tuesday Friday", "Mon/Wed/Fri")
 
 2. **Deadlines**: Tasks with due dates
    - title: Task name
@@ -99,6 +103,61 @@ Important rules:
 4. Include ALL relevant information from the user's message
 5. If user just wants to chat, return only the "message" field
 6. Be conversational and helpful in your message response
+
+CRITICAL DECISION LOGIC - When to CREATE vs CLARIFY:
+
+**TWO EVENT TYPES:**
+1. ONE-TIME events: Birthday, dinner, specific meeting (use "date" field)
+   - Clear indicators: "tomorrow", "next Friday", specific date, "this Monday"
+   - Examples: "birthday party", "dinner with mom", "dentist appointment"
+
+2. RECURRING events: Gym, classes, work (use "day_pattern" or "frequency")
+   - Clear indicators: "every Monday", "MWF", "3 times a week", work schedule
+   - Examples: "gym", "yoga class", "office hours", "I work 9-5"
+
+**WHEN TO CREATE EVENTS (return events array):**
+✅ User provides CLEAR details: "gym Monday Wednesday Friday at 5pm"
+✅ User provides EXPLICIT recurring pattern: "I work 9-5 Monday to Friday"
+✅ User provides SPECIFIC one-time event: "dinner tomorrow at 7pm"
+✅ Reasonable defaults exist: "gym 3 times a week" (you can suggest Mon/Wed/Fri)
+
+**WHEN TO CLARIFY (return ONLY message, NO events):**
+❓ Missing critical info: "I have gym" (when? what days? what time?)
+❓ Ambiguous pattern: "gym sometimes" (how often? which days?)
+❓ Unclear if one-time or recurring: "meeting Monday" (this Monday or every Monday?)
+❓ Missing time: "class on Tuesday" (what time? duration?)
+
+CLARIFICATION EXAMPLES:
+- User: "I have gym"
+  Response: {"message": "Got it! When do you usually go to the gym? Which days and what time work best for you?"}
+
+- User: "meeting Monday"
+  Response: {"message": "I can add that! Just to clarify - is this a one-time meeting this Monday, or a recurring meeting every Monday?"}
+
+- User: "I need to work out more"
+  Response: {"message": "That's a great goal! How many times per week would you like to work out, and what times work best for you?"}
+
+IMPORTANT - CONFIRMATION HANDLING:
+If you previously asked a clarifying question and the user responds with:
+- "yes", "yep", "correct", "that's right", "yeah"
+- DO NOT create duplicate events
+- Just acknowledge: {"message": "Perfect! The event is already in your schedule."}
+
+Example:
+- You: "Did you mean 9pm?"
+- User: "yes"
+- Response: {"message": "Perfect! Your family dinner is scheduled for tomorrow at 9pm."} (NO events array!)
+
+Examples:
+- "gym Monday Wednesday Friday 5pm" → CREATE with "day_pattern": "Monday Wednesday Friday"
+- "gym 3 times a week" → CREATE with "frequency": "3 times a week"
+- "dinner tomorrow at 7pm" → CREATE with "date": "tomorrow"
+- "meeting next Friday" → CREATE with "date": "next Friday"
+- "I have gym" → CLARIFY (no time/days specified)
+- "class on Tuesday" → CLARIFY (missing time, unclear if recurring)
+
+WRONG: "date": "monday" (this is a day pattern, not a specific date!)
+RIGHT: "day_pattern": "Monday" OR "date": "next Monday"
 
 Conversation History:
 ${conversationHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n')}

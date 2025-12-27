@@ -58,11 +58,12 @@ export function expandDayPattern(pattern: string): Day[] {
     }
   }
 
-  // Handle slash-separated patterns like "Mon/Wed/Fri"
-  const slashMatch = pattern.split(/[\/,|]/);
-  if (slashMatch.length > 1) {
+  // Handle slash-separated, comma-separated, or space-separated patterns
+  // Examples: "Mon/Wed/Fri", "Monday, Wednesday, Friday", "Monday Tuesday Friday"
+  const separatedMatch = pattern.split(/[\/,|\s]+/);
+  if (separatedMatch.length > 1) {
     const days: Day[] = [];
-    for (const part of slashMatch) {
+    for (const part of separatedMatch) {
       const day = dayMap[part.toLowerCase().trim()];
       if (day && !days.includes(day)) {
         days.push(day);

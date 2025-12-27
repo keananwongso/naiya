@@ -376,7 +376,7 @@ export function ChatPanelWithSessions({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={isRecording ? "Listening..." : isTranscribing ? "Transcribing..." : "Ask Naiya to change your schedule..."}
-            className={`w-full rounded-xl border border-[var(--border)] bg-[var(--background)] p-3 pr-16 text-sm shadow-sm focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none transition-colors max-h-[200px] overflow-y-auto ${isRecording ? "border-red-500 ring-1 ring-red-500 bg-red-50/10" : ""
+            className={`w-full rounded-xl border border-[var(--border)] bg-[var(--background)] p-3 pr-[72px] text-sm shadow-sm focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none transition-colors max-h-[200px] overflow-y-auto ${isRecording ? "border-red-500 ring-1 ring-red-500 bg-red-50/10" : ""
               }`}
             rows={1}
             disabled={isProcessing || isTranscribing}

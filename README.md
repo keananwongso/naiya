@@ -41,7 +41,7 @@ This project demonstrates:
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/KeananWongso/naiya.git
+git clone https://github.com/keananwongso/naiya.git
 cd naiya
 
 # 2. Start Supabase
@@ -452,7 +452,7 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 - Portfolio: [keananwongso.com](https://keananwongso.com)
 - LinkedIn: [linkedin.com/in/keananwongso](https://www.linkedin.com/in/keananwongso/)
-- GitHub: [@KeananWongso](https://github.com/KeananWongso)
+- GitHub: [@keananwongso](https://github.com/keananwongso)
 
 ---
 
